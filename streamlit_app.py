@@ -80,7 +80,7 @@ with st.form("Source data"):
         else:
             with tempfile.TemporaryDirectory() as folder:
                 folder = pathlib.Path(folder)
-                st.info(f"💾 Downloaded {len(response.content)/1024:.2f} Mb from sciebo")
+                st.info(f"💾 Downloaded {len(response.content)/1024/1024:.2f} Mb from sciebo")
                 data = ZipFile(BytesIO(response.content)).extractall(folder)
                 for p in folder.iterdir():
                     content = {

@@ -28,7 +28,7 @@ from uncertainties import ufloat, ufloat_fromstr
 from uncertainties.core import Variable
 from openpyxl import load_workbook
 
-__version__ = "2024.07.07"
+__version__ = "2024.10.04"
 
 def versions() -> list[tuple[str, str]]:
     """Return list of used packages and their versions.
@@ -813,7 +813,10 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
     if len(best) == 0:
         return []
     
-    best = best[0]
+    signal_best = out.iloc[best]["signal"]
+    
+    best = best[np.argmax(signal_best)]
+
     sel[best] = True
     sel[best + 1] = True
 

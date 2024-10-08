@@ -6,4 +6,3 @@ matplotlib
 requests
 uncertainties
 openpyxl
-strictly_typed_pandas

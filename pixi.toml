@@ -1,0 +1,20 @@
+[project]
+authors = ["Hernan Grecco <hgrecco@gmail.com>"]
+channels = ["conda-forge"]
+description = "Add a short description here"
+name = "photoacoustic"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "==3.12"
+streamlit = ">=1.9.0,<2"
+numpy = ">=2.1.2,<3"
+scipy = ">=1.14.1,<2"
+pandas = ">=2.2.3,<3"
+matplotlib = ">=3.9.2,<4"
+requests = ">=2.32.3,<3"
+uncertainties = ">=3.2.2,<4"
+openpyxl = ">=3.1.5,<4"

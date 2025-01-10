@@ -161,6 +161,15 @@ class Options(TypedDict):
 # Helper functions
 ###################
 
+def _analyze_bool_from_file(path: pathlib.Path):
+    experiment_folder = path.parent.parent
+    try:
+        df = pd.read_excel(experiment_folder / "traces.xlsx")
+    except FileNotFoundError:
+        return None
+    df = df.loc[df.path == str(path.relative_to(experiment_folder))]
+    return np.array(df.sort_values(by="trace_index")["analyzed"])
+
 def _argmedian_at_t0(signals: list[tuple[Array, Array]]) -> int:
     """Returns the indices of the median value.
     """
@@ -914,11 +923,33 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
 
     records: list[TraceAnalysis] = []
 
-    for ndx, df in yield_individual_repeats(alldf):
+    analyzearr = _analyze_bool_from_file(p)
+    if analyzearr is None:
+        analyzearr = np.repeat(True, len(alldf))
+
+    for (ndx, df), analyze_bool in zip(yield_individual_repeats(alldf), analyzearr):
         suffix = "" if ndx is None else f"\n(rep {ndx+1}/{df.attrs[ATTR_REPEATS]})"
+        if not bool(analyze_bool):
+            print(f"Skipping time trace {str(p.relative_to(experiment_folder))} {suffix}")
+            f = open(experiment_folder / "tmp.csv", "a")
+            print(str(p.relative_to(experiment_folder)), 
+                  str(p.parent.relative_to(experiment_folder)), 
+                  str(p.relative_to(experiment_folder).stem), 
+                  ndx,
+                  False, sep=",", file=f)
+            f.close()
+            continue
         
         try:
             trace_analysis, signal_smooth = analyze_time_trace(df["time"].to_numpy(), df["signal"].to_numpy(), options)
+            f = open(experiment_folder / "tmp.csv", "a")
+            print(str(p.relative_to(experiment_folder)), 
+                  str(p.parent.relative_to(experiment_folder)), 
+                  str(p.relative_to(experiment_folder).stem), 
+                  ndx,
+                  True, 
+                  sep=",", file=f)
+            f.close()
         except Exception as ex: 
             options["on_error"](f"Could not analyze time trace {str(p.relative_to(experiment_folder))} {suffix}: {str(ex)}")
             continue
@@ -1130,6 +1161,10 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
         records.append(powerscan_analysis)
         xys.append(xy)
 
+    columns=["path", "folder", "filename", "trace_index", "analyzed"]
+    pd.read_csv(folder / "tmp.csv", header=None, names=columns).to_excel(folder / 'traces.xlsx')
+    os.remove(folder / "tmp.csv")
+
     fit_df = pd.DataFrame.from_records(records)
 
     for exc_wavelength, gdf in fit_df.groupby("exc_wavelength"):
@@ -1254,7 +1289,7 @@ if __name__ == "__main__":
     # from tkinter import filedialog
     # path = pathlib.Path(filedialog.askdirectory(initialdir="."))
     # root = Tk()
-    ROOT = pathlib.Path("/Users/grecco/Documents/projects/strassert/optoacustic/data") 
+    ROOT = pathlib.Path("/home/tomi/Documents/academicos/becas/alemania/centech/pa/git/photoacoustic/data")
 
     # path = ROOT / "2024-07-16"
     # analyze(path)
@@ -1270,7 +1305,7 @@ if __name__ == "__main__":
     # analyze(path)
     # path = ROOT / "2024-08-01" / "Air" / "10 Measurements"
     # analyze(path)
-    path = ROOT / "2024-08-09"
+    path = ROOT / "prueba2_solo"
     analyze(path)
     # open_explorer(ROOT)
     # root.mainloop()

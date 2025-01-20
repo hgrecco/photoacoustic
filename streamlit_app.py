@@ -7,6 +7,7 @@ import streamlit as st
 import platform
 import requests
 import photoacoustic
+import pandas as pd
 
 st.set_page_config(
    page_title="Photoacoustic Analysis",
@@ -67,22 +68,59 @@ with st.form("Source data"):
     plot_repetitions = st.checkbox("Plot timetrace for repeats", value=True)
 
     # Every form must have a submit button.
-    submitted = st.form_submit_button("🚀 Analyze")
-    if submitted:
-        url_val = url_val.strip()
-        url = build_download_link(url_val)
+    options_submitted = st.form_submit_button("🚀 Analyze")
 
-        with st.spinner(f'Downloading {url}'):
-            response = requests.get(url)
+if options_submitted:
+    url_val = url_val.strip()
+    url = build_download_link(url_val)
 
-        if response.status_code != 200:
-            st.error(f"Cannot download data from sciebo (status code {response.status_code})")
-        else:
-            with tempfile.TemporaryDirectory() as folder:
-                folder = pathlib.Path(folder)
-                st.info(f"💾 Downloaded {len(response.content)/1024/1024:.2f} Mb from sciebo")
-                data = ZipFile(BytesIO(response.content)).extractall(folder)
-                for p in folder.iterdir():
+    with st.spinner(f'Downloading {url}'):
+        response = requests.get(url)
+
+    if response.status_code != 200:
+        st.error(f"Cannot download data from sciebo (status code {response.status_code})")
+    else:
+        with tempfile.TemporaryDirectory() as folder:
+            folder = pathlib.Path(folder)
+            st.info(f"💾 Downloaded {len(response.content)/1024/1024:.2f} Mb from sciebo")
+            data = ZipFile(BytesIO(response.content)).extractall(folder)
+
+
+            for p in folder.iterdir():
+
+                print(p / 'traces.xlsx' not in p.glob('*'))
+                print(p / 'traces.xlsx' not in list(p.glob('*')))
+                print(list(p.glob('*')))
+                if p / 'traces.xlsx' not in p.glob('*'):
+                    traces_submitted = True
+                    traces_to_analyze = None
+                else:
+                    traces_paths = pd.read_excel(p / 'traces.xlsx')
+
+                    with st.form("Select Traces"):
+                        traces = st.data_editor(
+                            traces_paths,
+                            column_config={
+                                "analyze": st.column_config.CheckboxColumn(
+                                    "analyze",
+                                    help="Unselect the traces you want to skip from analysis",
+                                )
+                            },
+                            disabled=["widgets"],
+                            hide_index=True,
+                        )
+
+                        traces_to_analyze = []
+                        for _, trace in traces.iterrows():
+                            print(f"{trace=}")
+                            if trace.analyzed:
+                                traces_to_analyze.append(
+                                    (trace.path, trace.trace_index)
+                                )
+
+                        traces_submitted = st.form_submit_button("📋 Select")
+
+                if traces_submitted:
                     content = {
                         sp.stem: len(list(sp.glob('*.txt'))) for sp in p.iterdir() 
                         if sp.is_dir() and not sp.stem.startswith("_")
@@ -96,35 +134,36 @@ with st.form("Source data"):
                             p, {
                                 "on_progress": progress, 
                                 "on_error": st.error,
-                                "plot_time_trace_rep": plot_repetitions
+                                "plot_time_trace_rep": plot_repetitions,
+                                "traces_to_analyze": traces_to_analyze,
                                 }
                             )
                     folder_bar.empty()
                     file_bar.empty()
                     st.info("👍 Analysis done!")
 
-                headers = {'X-Requested-With': 'XMLHttpRequest',}
-                key, folder = get_key_folder(url_val)
-                upload_ok = True
-                with st.spinner("Uploading results to sciebo ..."):
-                    for ext in ("xlsx", "pdf"):                
-                        response = requests.put(
-                            f'https://uni-muenster.sciebo.de/public.php/webdav/{folder}/summary.{ext}',
-                            headers=headers,
-                            data=(p / f"summary.{ext}").read_bytes(),
-                            verify=False,
-                            auth=(key, ''),
-                        )
-                        if 200 <= response.status_code < 300:
-                            st.info(f"💾 summary.{ext} stored in sciebo")
-                        else:
-                            upload_ok = False
-                            st.error(f"Problem found while uploading summary.{ext} (status code {response.status_code})")
+                    headers = {'X-Requested-With': 'XMLHttpRequest',}
+                    key, folder = get_key_folder(url_val)
+                    upload_ok = True
+                    with st.spinner("Uploading results to sciebo ..."):
+                        for ext in ("xlsx", "pdf"):                
+                            response = requests.put(
+                                f'https://uni-muenster.sciebo.de/public.php/webdav/{folder}/summary.{ext}',
+                                headers=headers,
+                                data=(p / f"summary.{ext}").read_bytes(),
+                                verify=False,
+                                auth=(key, ''),
+                            )
+                            if 200 <= response.status_code < 300:
+                                st.info(f"💾 summary.{ext} stored in sciebo")
+                            else:
+                                upload_ok = False
+                                st.error(f"Problem found while uploading summary.{ext} (status code {response.status_code})")
 
-                if upload_ok:
-                    st.info(f"🎉 Process complete!  \n  \nReload your sciebo page to get your results or follow this link {url_val}")    
-                else:
-                    st.warn(f"Process complete but problems found while uploading results  \nReload your sciebo page to check if your results are present or follow this link {url_val}")    
+                    if upload_ok:
+                        st.info(f"🎉 Process complete!  \n  \nReload your sciebo page to get your results or follow this link {url_val}")    
+                    else:
+                        st.warn(f"Process complete but problems found while uploading results  \nReload your sciebo page to check if your results are present or follow this link {url_val}")    
 
 
 with st.expander("Package versions"):

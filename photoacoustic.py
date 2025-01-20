@@ -68,6 +68,7 @@ DEFAULT_OPTIONS = {
     "savgol_polyorder": 3,
     "on_progress": print,
     "on_error": print,
+    "traces_to_analyze": None,
     "plot_time_trace_rep": True,
 }
 
@@ -155,6 +156,7 @@ class Options(TypedDict):
     savgol_polyorder: int
     on_progress: Callable[[str,], None]
     on_error: Callable[[str,], None]
+    traces_to_analyze: list[tuple[str, int]] | None
     plot_time_trace_rep: bool
 
 ###################
@@ -917,6 +919,20 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
     for ndx, df in yield_individual_repeats(alldf):
         suffix = "" if ndx is None else f"\n(rep {ndx+1}/{df.attrs[ATTR_REPEATS]})"
         
+        analyzed = options["traces_to_analyze"] is None or not options["traces_to_analyze"][ndx]
+        with open(experiment_folder / 'tmp.csv', 'a') as f:
+            print(
+                str(p.relative_to(experiment_folder)),
+                str(p.parent.relative_to(experiment_folder)),
+                str(p.relative_to(experiment_folder).stem),
+                ndx + 1,
+                analyzed,
+                sep=",", 
+                file=f
+                )
+        if not analyzed:
+            continue
+        
         try:
             trace_analysis, signal_smooth = analyze_time_trace(df["time"].to_numpy(), df["signal"].to_numpy(), options)
         except Exception as ex: 
@@ -1130,6 +1146,10 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
         records.append(powerscan_analysis)
         xys.append(xy)
 
+    names = ['path', 'folder', 'filename', 'rep', 'analyzed']
+    pd.read_csv(folder / 'tmp.csv', header=None, names=names).to_excel(folder / 'traces.xlsx')
+    os.remove(folder / 'tmp.csv')
+
     fit_df = pd.DataFrame.from_records(records)
 
     for exc_wavelength, gdf in fit_df.groupby("exc_wavelength"):
@@ -1254,7 +1274,7 @@ if __name__ == "__main__":
     # from tkinter import filedialog
     # path = pathlib.Path(filedialog.askdirectory(initialdir="."))
     # root = Tk()
-    ROOT = pathlib.Path("/Users/grecco/Documents/projects/strassert/optoacustic/data") 
+    ROOT = pathlib.Path("/home/tomi/Documents/academicos/becas/alemania/centech/lab/git/photoacoustic/data") 
 
     # path = ROOT / "2024-07-16"
     # analyze(path)
@@ -1270,7 +1290,7 @@ if __name__ == "__main__":
     # analyze(path)
     # path = ROOT / "2024-08-01" / "Air" / "10 Measurements"
     # analyze(path)
-    path = ROOT / "2024-08-09"
+    path = ROOT / "Au-tBu-NMe2"
     analyze(path)
     # open_explorer(ROOT)
     # root.mainloop()

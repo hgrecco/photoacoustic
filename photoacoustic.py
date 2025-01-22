@@ -125,6 +125,7 @@ class FileAnalysis(TypedDict):
     bandwith: float
     averages: int
     repeats: int | None
+    analyzed: str | None
 
     energy: Variable
 
@@ -266,6 +267,22 @@ def ztest(unc1: Variable, unc2: Variable) -> float:
 # I/O functions
 ################
 
+
+def construct_traces_sheet(path: pathlib.Path):
+    xlsx = pd.ExcelFile(path / 'summary.xlsx')
+
+    data = []
+    for sheet_name in xlsx.sheet_names[2:]:
+        if not sheet_name.startswith('('):
+            df = pd.read_excel(xlsx, sheet_name=sheet_name, converters={'analyzed':str})
+            for _, row in df.iterrows():
+                folder = row.path.split('/')[0]
+                filename = row.path.split('/')[1]
+                for rep, analyzed in enumerate(row.analyzed):
+                    data.append((row.path, folder, filename, rep + 1, bool(int(analyzed))))
+    df = pd.DataFrame(data, columns=["path", "folder", "filename", "rep", "analyzed"])
+    df.to_excel(path / 'traces.xlsx', index=False)
+    
 
 def reorganize_sheets(path: pathlib.Path):
     """Reorganize sheets in an excel file
@@ -916,23 +933,19 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
 
     records: list[TraceAnalysis] = []
 
+    analyzed: str = ""
+
     for ndx, df in yield_individual_repeats(alldf):
         suffix = "" if ndx is None else f"\n(rep {ndx+1}/{df.attrs[ATTR_REPEATS]})"
-        
-        analyzed = options["traces_to_analyze"] is None or not options["traces_to_analyze"][ndx]
-        with open(experiment_folder / 'tmp.csv', 'a') as f:
-            print(
-                str(p.relative_to(experiment_folder)),
-                str(p.parent.relative_to(experiment_folder)),
-                str(p.relative_to(experiment_folder).stem),
-                ndx + 1,
-                analyzed,
-                sep=",", 
-                file=f
-                )
-        if not analyzed:
-            continue
-        
+
+        trace_analyzed = options["traces_to_analyze"] is None or options["traces_to_analyze"][ndx]
+
+        if not trace_analyzed:
+            suffix = suffix + '\n(Skipped)'
+            analyzed += '0'
+        else:
+            analyzed += '1'
+
         try:
             trace_analysis, signal_smooth = analyze_time_trace(df["time"].to_numpy(), df["signal"].to_numpy(), options)
         except Exception as ex: 
@@ -998,6 +1011,7 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
         "bandwith": df.attrs["Bandwidth"],
         "averages": df.attrs["Averages"],
         "repeats": df.attrs[ATTR_REPEATS],
+        "analyzed": analyzed,
 
         "energy": energy,
 
@@ -1146,10 +1160,6 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
         records.append(powerscan_analysis)
         xys.append(xy)
 
-    names = ['path', 'folder', 'filename', 'rep', 'analyzed']
-    pd.read_csv(folder / 'tmp.csv', header=None, names=names).to_excel(folder / 'traces.xlsx')
-    os.remove(folder / 'tmp.csv')
-
     fit_df = pd.DataFrame.from_records(records)
 
     for exc_wavelength, gdf in fit_df.groupby("exc_wavelength"):
@@ -1267,6 +1277,7 @@ def analyze(root: pathlib.Path, options: Options | None=None):
                     unzip_unc_column(df, "alpha", "alpha0").to_excel(xlsx, sheet_name="__ALPHA__", index=False)
 
             reorganize_sheets(root / 'summary.xlsx')
+            construct_traces_sheet(root)
 
 
 if __name__ == "__main__":
@@ -1290,7 +1301,7 @@ if __name__ == "__main__":
     # analyze(path)
     # path = ROOT / "2024-08-01" / "Air" / "10 Measurements"
     # analyze(path)
-    path = ROOT / "Au-tBu-NMe2"
+    path = ROOT / "prueba2_solo"
     analyze(path)
     # open_explorer(ROOT)
     # root.mainloop()

@@ -69,6 +69,7 @@ DEFAULT_OPTIONS = {
     "on_progress": print,
     "on_error": print,
     "plot_time_trace_rep": True,
+    "trace_to_include": {}
 }
 
 #################
@@ -104,6 +105,9 @@ class Metadata(TypedDict):
 # end unused
 
 class TraceAnalysis(TypedDict):
+    path: str
+    repeat: int | None
+
     energy: Variable
 
     time_peak1: Variable
@@ -115,6 +119,7 @@ class TraceAnalysis(TypedDict):
     time_delta: Variable
     signal_delta: Variable
 
+    include: bool
 
 class FileAnalysis(TypedDict):
     path: str
@@ -156,6 +161,8 @@ class Options(TypedDict):
     on_progress: Callable[[str,], None]
     on_error: Callable[[str,], None]
     plot_time_trace_rep: bool
+    trace_to_include: dict[tuple[str, int], bool]
+
 
 ###################
 # Helper functions
@@ -279,6 +286,21 @@ def reorganize_sheets(path: pathlib.Path):
             wb.move_sheet(sheetname, -ndx+2)
 
     wb.save(path)
+
+
+def extract_include(path: pathlib.Path) -> DataFrame:
+    """Reorganize sheets in an excel file
+    """
+    out = []
+    wb = load_workbook(path)
+    sheetnames = wb.sheetnames
+    for sheetname in sheetnames:
+        if not sheetname.startswith("("):
+            continue
+        out.append(
+            pd.read_excel(path, sheet_name=sheetname)[["path", "repeat", "include"]]
+        )
+    return pd.concat(out)
 
 
 def read_metadata(fi: ReadLiner) -> dict[str, str]:
@@ -579,7 +601,7 @@ def build_time_trace_figure(
     table.auto_set_font_size(False)
     table.set_fontsize(5)
 
-    ax_peak.set_title("Peaks")
+    ax_peak.set_title(f"Peaks (include={peak_record['include']})")
     table = ax_peak.table(
         cellText=[
             (f"{peak_record['time_peak1'].nominal_value:.3f}", f"{peak_record['signal_peak1'].nominal_value:.3f}"),
@@ -879,7 +901,12 @@ def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[Tr
     time_delta  = peaks[0][0] - peaks[1][0]
     signal_delta = peaks[0][1] - peaks[1][1]
 
-    return {
+    return (
+        {
+        "path": "",
+        "repeat": None,
+        "include": all(map(np.isfinite, (time_delta.nominal_value, time_delta.std_dev, signal_delta.nominal_value, signal_delta.std_dev))),
+
         "energy": UFLOAT_NAN,
 
         "time_peak1": peaks[0][0],
@@ -890,7 +917,9 @@ def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[Tr
 
         "time_delta": time_delta,
         "signal_delta": signal_delta,
-    }, signal_smooth
+        }, 
+        signal_smooth
+    )
     
 
 def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | None, options: Options) -> tuple[FileAnalysis, list[tuple[Array, Array]], list[float]]:
@@ -923,10 +952,16 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
             options["on_error"](f"Could not analyze time trace {str(p.relative_to(experiment_folder))} {suffix}: {str(ex)}")
             continue
 
-        if not np.isnan(trace_analysis["time_peak1"].nominal_value):
-            signals.append((df["time"].to_numpy() - trace_analysis["time_peak1"].nominal_value, signal_smooth))
+        signals.append((df["time"].to_numpy() - trace_analysis["time_peak1"].nominal_value, signal_smooth))
 
+        trace_analysis["path"] = str(p.relative_to(experiment_folder))
+        trace_analysis["repeat"] = ndx
         trace_analysis["energy"] = df.attrs["Laser energy before"]
+        trace_analysis["include"] = (
+                trace_analysis["include"] and
+                options["trace_to_include"].get((str(p.relative_to(experiment_folder)), ndx), True)
+            )
+
         records.append(trace_analysis)
 
         if pdf is not None:
@@ -961,33 +996,35 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
     #####################
     # Results of repeat
 
+    include = trace_analysis_df["include"].values
     try:
         # TODO: check what Edinburg is doing for compatibility std or sem
         # TODO: make funciton filter all simulteanously.
-        valid = [np.isfinite(delta.nominal_value) and np.isfinite(delta.std_dev)
-                 for delta in trace_analysis_df["time_delta"].values]
-
-        energy = ufloat_nanmean(*trace_analysis_df[valid]["energy"].to_list())
-        time_delta = ufloat_nanmean(*trace_analysis_df[valid]["time_delta"].to_list())
-        signal_delta = ufloat_nanmean(*trace_analysis_df[valid]["signal_delta"].to_list())
+        energy = ufloat_nanmean(*trace_analysis_df[include]["energy"].to_list())
+        time_delta = ufloat_nanmean(*trace_analysis_df[include]["time_delta"].to_list())
+        signal_delta = ufloat_nanmean(*trace_analysis_df[include]["signal_delta"].to_list())
     except Exception as ex:
         print(ex)
         energy  = time_delta = signal_delta = UFLOAT_NAN
 
-    return {
-        "path": str(p.relative_to(experiment_folder)),
-        "description": df.attrs["Desc"],
-        "comment": df.attrs["Comment"],
-        "wavelength": df.attrs["Wavelength"],
-        "bandwith": df.attrs["Bandwidth"],
-        "averages": df.attrs["Averages"],
-        "repeats": df.attrs[ATTR_REPEATS],
+    return (
+        {
+            "path": str(p.relative_to(experiment_folder)),
+            "description": df.attrs["Desc"],
+            "comment": df.attrs["Comment"],
+            "wavelength": df.attrs["Wavelength"],
+            "bandwith": df.attrs["Bandwidth"],
+            "averages": df.attrs["Averages"],
+            "repeats": df.attrs[ATTR_REPEATS],
 
-        "energy": energy,
+            "energy": energy,
 
-        "time_delta": time_delta,
-        "signal_delta": signal_delta,
-    }, signals, [x.nominal_value for x in trace_analysis_df["energy"]]
+            "time_delta": time_delta,
+            "signal_delta": signal_delta,
+        }, 
+        [signal for _inc, signal in zip(include, signals) if _inc], 
+        [x.nominal_value for x in trace_analysis_df[include]["energy"]]
+    )
 
 
 
@@ -1229,6 +1266,16 @@ def analyze(root: pathlib.Path, options: Options | None=None):
         options = {**DEFAULT_OPTIONS, **options}
     assert options is not None
 
+    try:
+        include_df = pd.read_excel(root / "include.xlsx")
+        options["trace_to_include"] = {
+            (row["path"], row["repeat"]): row["include"]
+            for _, row in include_df.iterrows()
+        }
+    except FileNotFoundError:
+        options["trace_to_include"] = {}
+        
+
     default_footnote(None)
 
     with warnings.catch_warnings():
@@ -1247,6 +1294,12 @@ def analyze(root: pathlib.Path, options: Options | None=None):
                     unzip_unc_column(df, "alpha", "alpha0").to_excel(xlsx, sheet_name="__ALPHA__", index=False)
 
             reorganize_sheets(root / 'summary.xlsx')
+
+            extract_include(root / 'summary.xlsx').to_excel(
+                root / "include.xlsx",
+                index=False,
+                header=True
+            )
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ from uncertainties import ufloat, ufloat_fromstr
 from uncertainties.core import Variable
 from openpyxl import load_workbook
 
-__version__ = "2024.10.04"
+__version__ = "2025.02.12"
 
 def versions() -> list[tuple[str, str]]:
     """Return list of used packages and their versions.

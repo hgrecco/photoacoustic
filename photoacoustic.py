@@ -1274,7 +1274,8 @@ def analyze(root: pathlib.Path, options: Options | None=None):
                     options[name] = value = user_options[name]
                     options["on_progress"](f"options.toml: Setting {name} to {value}")
     except FileNotFoundError:
-        options["on_progress"]("options.toml not found.")
+        #options["on_progress"]("options.toml not found.")
+        pass
 
     assert options is not None
 

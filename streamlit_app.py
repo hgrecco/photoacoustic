@@ -13,6 +13,18 @@ st.set_page_config(
    page_icon="🧊",
 )
 
+st.markdown(
+    """
+    <style>
+    div.stToolbarActions {
+        visibility: hidden;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
 st.title("Photoacoustic Analysis 💡🎤")
 st.markdown("""
 1. Save your data using the following naming [convention](https://docs.google.com/document/d/1JBwmuLxCsvaFCDBpr_KElQ-tdxVQ7ZsdQhIBlSiCvc0/pub).

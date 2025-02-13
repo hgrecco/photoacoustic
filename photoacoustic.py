@@ -4,7 +4,8 @@ import os
 import pathlib
 import platform
 import subprocess
-from typing import Any, Iterable, Protocol, TypedDict, Generator, overload, get_type_hints, Callable
+import tomllib
+from typing import Any, Iterable, Literal, Protocol, TypedDict, Generator, overload, get_type_hints, Callable
 import warnings
 
 import matplotlib as mpl
@@ -69,7 +70,8 @@ DEFAULT_OPTIONS = {
     "on_progress": print,
     "on_error": print,
     "plot_time_trace_rep": True,
-    "trace_to_include": {}
+    "trace_to_include": {},
+    "pa_signal": "signal_delta"
 }
 
 #################
@@ -131,9 +133,7 @@ class FileAnalysis(TypedDict):
     repeats: int | None
 
     energy: Variable
-
-    time_delta: Variable
-    signal_delta: Variable
+    pa_signal: Variable
 
 
 class PowerscanAnalysis(TypedDict):
@@ -162,6 +162,7 @@ class Options(TypedDict):
     on_error: Callable[[str,], None]
     plot_time_trace_rep: bool
     trace_to_include: dict[tuple[str, int], bool]
+    pa_signal: Literal["signal_delta", "signal_peak1", "signal_peak2"]
 
 
 ###################
@@ -697,7 +698,7 @@ def build_powerscan_figure(
     fig.set_figheight(210/40)
 
     ax_plot.set_xlabel(r"Laser power / $\mu J$")
-    ax_plot.set_ylabel(r"$\Delta$signal / V")
+    ax_plot.set_ylabel("PAS / V")
     ax_plot.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
 
     cellText = []
@@ -1001,11 +1002,10 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
         # TODO: check what Edinburg is doing for compatibility std or sem
         # TODO: make funciton filter all simulteanously.
         energy = ufloat_nanmean(*trace_analysis_df[include]["energy"].to_list())
-        time_delta = ufloat_nanmean(*trace_analysis_df[include]["time_delta"].to_list())
-        signal_delta = ufloat_nanmean(*trace_analysis_df[include]["signal_delta"].to_list())
+        pa_signal = ufloat_nanmean(*trace_analysis_df[include][options["pa_signal"]].to_list())
     except Exception as ex:
         print(ex)
-        energy  = time_delta = signal_delta = UFLOAT_NAN
+        energy  = pa_signal = UFLOAT_NAN
 
     return (
         {
@@ -1018,9 +1018,7 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
             "repeats": df.attrs[ATTR_REPEATS],
 
             "energy": energy,
-
-            "time_delta": time_delta,
-            "signal_delta": signal_delta,
+            "pa_signal": pa_signal,
         }, 
         [signal for _inc, signal in zip(include, signals) if _inc], 
         [x.nominal_value for x in trace_analysis_df[include]["energy"]]
@@ -1097,11 +1095,11 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
         )
 
     energy: list[Variable] = file_df["energy"].to_list()
-    signal_delta: list[Variable] = file_df["signal_delta"].to_list()
+    pa_signal: list[Variable] = file_df["pa_signal"].to_list()
 
     try:
         x, x_unc = split_unc_tuple(*energy, container=lambda el: np.fromiter(el, dtype=float))
-        y, y_unc = split_unc_tuple(*signal_delta, container=lambda el: np.fromiter(el, dtype=float))
+        y, y_unc = split_unc_tuple(*pa_signal, container=lambda el: np.fromiter(el, dtype=float))
 
         valid = np.logical_not(np.logical_or(np.isnan(x), np.isnan(y)))
         if np.sum(valid) >= 2:
@@ -1126,7 +1124,7 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
         "slope": slope,
         "intercept": intercept,
         "slope0": slope0,
-    }, (energy, signal_delta)
+    }, (energy, pa_signal)
 
 
 def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | None, options: Options) -> DataFrame:
@@ -1264,6 +1262,20 @@ def analyze(root: pathlib.Path, options: Options | None=None):
         options = DEFAULT_OPTIONS
     else:
         options = {**DEFAULT_OPTIONS, **options}
+
+    try:
+        with (root / "options.toml").open("rb") as f:
+            user_options = tomllib.load(f)
+
+        if "general" in user_options:
+            user_options = user_options["general"]
+            for name in ("savgol_window_length", "savgol_polyorder", "pa_signal"):
+                if name in user_options:
+                    options[name] = value = user_options[name]
+                    options["on_progress"](f"options.toml: Setting {name} to {value}")
+    except FileNotFoundError:
+        options["on_progress"]("options.toml not found.")
+
     assert options is not None
 
     try:

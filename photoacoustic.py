@@ -71,7 +71,8 @@ DEFAULT_OPTIONS = {
     "on_error": print,
     "plot_time_trace_rep": True,
     "trace_to_include": {},
-    "pa_signal": "signal_delta"
+    "pa_signal": "signal_delta",
+    "plot_with_intercept": True
 }
 
 #################
@@ -675,6 +676,7 @@ def build_powerscan_figure(
         slope_intercepts: tuple[Iterable[Variable], Iterable[Variable]],
         slopes0: Iterable[Variable],
         labels: Iterable[str],
+        options: Options = DEFAULT_OPTIONS,
         ) -> Figure:
     """_summary_
 
@@ -709,13 +711,19 @@ def build_powerscan_figure(
         x, x_unc = split_unc_tuple(*x)
         y, y_unc = split_unc_tuple(*y)
 
-        x_fit = np.linspace(0, np.max(x) * 1.1, 10)
-        y_fit = slope.nominal_value * x_fit + intercept.nominal_value
-        line, = ax_plot.plot(x_fit, y_fit)
+        color = None
+        ls = None
+        if options["plot_with_intercept"]:
+            x_fit = np.linspace(0, np.max(x) * 1.1, 10)
+            y_fit = slope.nominal_value * x_fit + intercept.nominal_value
+            line, = ax_plot.plot(x_fit, y_fit)
+
+            color = line.get_color()
+            ls = ":"
 
         x_fit = np.linspace(0, np.max(x) * 1.1, 10)
         y_fit = slope0.nominal_value * x_fit
-        line, = ax_plot.plot(x_fit, y_fit, ls=":", color=line.get_color())
+        line, = ax_plot.plot(x_fit, y_fit, ls=ls, color=color)
 
         ax_plot.errorbar(
             x, 
@@ -1195,7 +1203,8 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
                 xys, 
                 (gdf["slope"].to_list(), gdf["intercept"].to_list()),
                 gdf["slope0"].to_list(),
-                gdf["folder"].to_list()
+                gdf["folder"].to_list(),
+                options=options,
             )
             fig.suptitle(f"Excitation Wavelength {exc_wavelength} nm")
             fig.tight_layout()

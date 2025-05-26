@@ -72,7 +72,8 @@ DEFAULT_OPTIONS = {
     "plot_time_trace_rep": True,
     "trace_to_include": {},
     "pa_signal": "signal_delta",
-    "plot_with_intercept": True
+    "plot_with_intercept": True,
+    "plot_with_uncertainty" : True,
 }
 
 #################
@@ -710,6 +711,7 @@ def build_powerscan_figure(
     for (x, y), slope, intercept, slope0, label in zip(energy_delta_signal, *slope_intercepts, slopes0, labels):
         x, x_unc = split_unc_tuple(*x)
         y, y_unc = split_unc_tuple(*y)
+        
 
         color = None
         ls = None
@@ -720,6 +722,41 @@ def build_powerscan_figure(
 
             color = line.get_color()
             ls = ":"
+
+        if options["plot_with_uncertainty"]:
+            xarr = np.array(x)
+            xuncarr = np.array(x_unc)
+            yarr = np.array(y)
+            yuncarr = np.array(y_unc)
+            
+            xa = np.linspace(0, np.max(x) * 1.1, 100)
+
+            def estimate_slope_variance(x, y, x_unc, y_unc, slope):
+                x = np.asarray(x)
+                y = np.asarray(y)
+                x_unc = np.asarray(x_unc)
+                y_unc = np.asarray(y_unc)
+    
+                n = len(x)
+                mean_x = np.mean(x)
+                denom = n * (sum(x**2) - sum(x)**2 / n)
+
+                if denom == 0:
+                    raise ValueError("Zero variance in x — cannot fit.")
+
+                # Variance of slope due to both x and y uncertainties
+                num = np.sum((y_unc ** 2) * (x ** 2)) + slope.nominal_value ** 2 * np.sum((x_unc ** 2) * (x ** 2))
+
+                return num / denom
+
+
+            slope_var = estimate_slope_variance(xarr, yarr, xuncarr, yuncarr, slope0)
+            ya_unc = np.sqrt(slope_var) * xa
+            ya = slope0.nominal_value * xa 
+            ax_plot.plot(xa, ya + ya_unc, ls='--', color=line.get_color(), alpha=0.5, linewidth=0.5)
+            ax_plot.plot(xa, ya - ya_unc, ls='--', color=line.get_color(), alpha=0.5, linewidth=0.5)
+            ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
+                                 color=line.get_color(), alpha=0.2)
 
         x_fit = np.linspace(0, np.max(x) * 1.1, 10)
         y_fit = slope0.nominal_value * x_fit

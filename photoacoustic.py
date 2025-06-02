@@ -73,7 +73,8 @@ DEFAULT_OPTIONS = {
     "trace_to_include": {},
     "pa_signal": "signal_delta",
     "plot_with_intercept": True,
-    "plot_with_uncertainty" : True,
+    "plot_uncertainty_slope" : False,
+    "plot_uncertainty_slope0" : True,
 }
 
 #################
@@ -146,6 +147,8 @@ class PowerscanAnalysis(TypedDict):
     slope: Variable
     intercept: Variable
     slope0: Variable
+    result: odr.Output | None
+    result0: odr.Output | None
 
 
 class ExperimentAnalysis(TypedDict):
@@ -165,6 +168,9 @@ class Options(TypedDict):
     plot_time_trace_rep: bool
     trace_to_include: dict[tuple[str, int], bool]
     pa_signal: Literal["signal_delta", "signal_peak1", "signal_peak2"]
+    plot_with_intercept: bool
+    plot_uncertainty_slope: bool
+    plot_uncertainty_slope0: bool
 
 
 ###################
@@ -677,6 +683,8 @@ def build_powerscan_figure(
         slope_intercepts: tuple[Iterable[Variable], Iterable[Variable]],
         slopes0: Iterable[Variable],
         labels: Iterable[str],
+        results: Iterable[odr.Output],
+        results0: Iterable[odr.Output],
         options: Options = DEFAULT_OPTIONS,
         ) -> Figure:
     """_summary_
@@ -708,13 +716,14 @@ def build_powerscan_figure(
     rowLabels = []
     rowColours = []
 
-    for (x, y), slope, intercept, slope0, label in zip(energy_delta_signal, *slope_intercepts, slopes0, labels):
+    for (x, y), slope, intercept, slope0, label, result, result0 in zip(energy_delta_signal, *slope_intercepts, slopes0, labels, results, results0):
         x, x_unc = split_unc_tuple(*x)
         y, y_unc = split_unc_tuple(*y)
         
 
         color = None
         ls = None
+
         if options["plot_with_intercept"]:
             x_fit = np.linspace(0, np.max(x) * 1.1, 10)
             y_fit = slope.nominal_value * x_fit + intercept.nominal_value
@@ -723,38 +732,24 @@ def build_powerscan_figure(
             color = line.get_color()
             ls = ":"
 
-        if options["plot_with_uncertainty"]:
-            xarr = np.array(x)
-            xuncarr = np.array(x_unc)
-            yarr = np.array(y)
-            yuncarr = np.array(y_unc)
-            
+        if options["plot_uncertainty_slope"]:
             xa = np.linspace(0, np.max(x) * 1.1, 100)
 
-            def estimate_slope_variance(x, y, x_unc, y_unc, slope):
-                x = np.asarray(x)
-                y = np.asarray(y)
-                x_unc = np.asarray(x_unc)
-                y_unc = np.asarray(y_unc)
-    
-                n = len(x)
-                mean_x = np.mean(x)
-                denom = n * (sum(x**2) - sum(x)**2 / n)
+            # Slope
+            ya_var = xa**2 * result.cov_beta[0, 0] + result.cov_beta[1, 1] + 2 * xa * result.cov_beta[0, 1]
+            ya_unc = np.sqrt(ya_var)
+            ya = slope.nominal_value * xa + intercept.nominal_value
 
-                if denom == 0:
-                    raise ValueError("Zero variance in x — cannot fit.")
+            ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
+                                 color=line.get_color(), alpha=0.2)
 
-                # Variance of slope due to both x and y uncertainties
-                num = np.sum((y_unc ** 2) * (x ** 2)) + slope.nominal_value ** 2 * np.sum((x_unc ** 2) * (x ** 2))
+        if options["plot_uncertainty_slope0"]:
+            xa = np.linspace(0, np.max(x) * 1.1, 100)
+            
+            # Slope0
+            ya_unc = np.sqrt(xa**2 * result0.cov_beta[0,0] )
+            ya = slope0.nominal_value * xa
 
-                return num / denom
-
-
-            slope_var = estimate_slope_variance(xarr, yarr, xuncarr, yuncarr, slope0)
-            ya_unc = np.sqrt(slope_var) * xa
-            ya = slope0.nominal_value * xa 
-            ax_plot.plot(xa, ya + ya_unc, ls='--', color=line.get_color(), alpha=0.5, linewidth=0.5)
-            ax_plot.plot(xa, ya - ya_unc, ls='--', color=line.get_color(), alpha=0.5, linewidth=0.5)
             ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
                                  color=line.get_color(), alpha=0.2)
 
@@ -905,7 +900,7 @@ def _fix_fit_unc(unc: Array):
         return unc
 
 
-def fit_linear(x: Iterable[float], y: Iterable[float], x_unc: Iterable[float], y_unc: Iterable[float], intercept0: bool=False) -> tuple[Variable, Variable]:
+def fit_linear(x: Iterable[float], y: Iterable[float], x_unc: Iterable[float], y_unc: Iterable[float], intercept0: bool=False) -> tuple[tuple[Variable, Variable], odr.Output]:
     """Fit linear and return the slope and intercept (as value with uncertainty).
     """
 
@@ -925,7 +920,7 @@ def fit_linear(x: Iterable[float], y: Iterable[float], x_unc: Iterable[float], y
     else:
         result = odr.ODR(data, odr.unilinear).run()
 
-    return to_unc_tuple(result.beta, result.sd_beta)
+    return to_unc_tuple(result.beta, result.sd_beta), result
 
 
 def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[TraceAnalysis, Array]:
@@ -1148,17 +1143,19 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
 
         valid = np.logical_not(np.logical_or(np.isnan(x), np.isnan(y)))
         if np.sum(valid) >= 2:
-            slope, intercept = fit_linear(x[valid], y[valid], x_unc[valid], y_unc[valid])
-            slope0, _intercept0 = fit_linear(x[valid], y[valid], x_unc[valid], y_unc[valid], intercept0=True)
+            (slope, intercept), result = fit_linear(x[valid], y[valid], x_unc[valid], y_unc[valid])
+            (slope0, _intercept0), result0 = fit_linear(x[valid], y[valid], x_unc[valid], y_unc[valid], intercept0=True)
         else:
             options["on_error"]("Could not fit for {folder.stem}: not enough valid points")
             slope = intercept = UFLOAT_NAN
             slope0 = _intercept0 = UFLOAT_NAN
+            result, result0 = None, None
 
     except Exception as ex:
         options["on_error"](f"Could not fit for {folder.stem}: {str(ex)}")
         slope = intercept = UFLOAT_NAN
         slope0 = _intercept0 = UFLOAT_NAN
+        result, result0 = None, None
 
 
     return {
@@ -1169,6 +1166,8 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
         "slope": slope,
         "intercept": intercept,
         "slope0": slope0,
+        "result":result,
+        "result0": result0,
     }, (energy, pa_signal)
 
 
@@ -1241,6 +1240,8 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
                 (gdf["slope"].to_list(), gdf["intercept"].to_list()),
                 gdf["slope0"].to_list(),
                 gdf["folder"].to_list(),
+                gdf["result"].to_list(),
+                gdf["result0"].to_list(),
                 options=options,
             )
             fig.suptitle(f"Excitation Wavelength {exc_wavelength} nm")

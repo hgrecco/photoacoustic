@@ -78,7 +78,8 @@ with st.form("Source data"):
     url_val = st.text_input("sciebo URL")
     plot_repetitions = st.checkbox("Plot timetrace for repeats", value=True)
     plot_intercept = st.checkbox("Plot non-zero intercept", value=True)
-    plot_uncertainty = st.checkbox("Plot uncertainty", value=True)
+    plot_uncertainty_slope = st.checkbox("Plot uncertainty slope", value=False)
+    plot_uncertainty_slope0 = st.checkbox("Plot uncertainty slope0", value=True)
 
     # Every form must have a submit button.
     submitted = st.form_submit_button("🚀 Analyze")
@@ -112,7 +113,8 @@ with st.form("Source data"):
                                 "on_error": st.error,
                                 "plot_time_trace_rep": plot_repetitions,
                                 "plot_with_intercept": plot_intercept,
-                                "plot_with_uncertainty" : plot_uncertainty,
+                                "plot_uncertainty_slope" : plot_uncertainty_slope,
+                                "plot_uncertainty_slope0" : plot_uncertainty_slope0,
                                 }
                             )
                     folder_bar.empty()

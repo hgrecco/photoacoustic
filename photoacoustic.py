@@ -732,26 +732,17 @@ def build_powerscan_figure(
             color = line.get_color()
             ls = ":"
 
-        if options["plot_uncertainty_slope"]:
-            xa = np.linspace(0, np.max(x) * 1.1, 100)
+            if options["plot_uncertainty_slope"]:
+                xa = np.linspace(0, np.max(x) * 1.1, 100)
 
-            # Slope
-            ya_var = xa**2 * result.cov_beta[0, 0] + result.cov_beta[1, 1] + 2 * xa * result.cov_beta[0, 1]
-            ya_unc = np.sqrt(ya_var)
-            ya = slope.nominal_value * xa + intercept.nominal_value
+                # Slope
+                ya_var = xa**2 * result.cov_beta[0, 0] + result.cov_beta[1, 1] + 2 * xa * result.cov_beta[0, 1]
+                ya_unc = np.sqrt(ya_var)
+                ya = slope.nominal_value * xa + intercept.nominal_value
 
-            ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
-                                 color=line.get_color(), alpha=0.2)
+                ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
+                                     color=line.get_color(), alpha=0.2)
 
-        if options["plot_uncertainty_slope0"]:
-            xa = np.linspace(0, np.max(x) * 1.1, 100)
-            
-            # Slope0
-            ya_unc = np.sqrt(xa**2 * result0.cov_beta[0,0] )
-            ya = slope0.nominal_value * xa
-
-            ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
-                                 color=line.get_color(), alpha=0.2)
 
         x_fit = np.linspace(0, np.max(x) * 1.1, 10)
         y_fit = slope0.nominal_value * x_fit
@@ -766,6 +757,16 @@ def build_powerscan_figure(
             marker='.',
             color=line.get_color(),
         )
+
+        if options["plot_uncertainty_slope0"]:
+            xa = np.linspace(0, np.max(x) * 1.1, 100)
+            
+            # Slope0
+            ya_unc = np.sqrt(xa**2 * result0.cov_beta[0,0] )
+            ya = slope0.nominal_value * xa
+
+            ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
+                                 color=line.get_color(), alpha=0.2)
 
         cellText.append(
             (label, f"${slope:.2uL}$", f"${intercept:.2uL}$", f"${slope0:.2uL}$"),
@@ -1383,7 +1384,8 @@ if __name__ == "__main__":
     # analyze(path)
     # path = ROOT / "2024-08-01" / "Air" / "10 Measurements"
     # analyze(path)
-    path = ROOT / "2024-08-09"
+    #path = ROOT / "2024-08-09"
+    path = pathlib.Path('/home/tomi/Documents/academicos/becas/alemania/centech/lab/data/2025-01-21/oil_test/70')
     analyze(path)
     # open_explorer(ROOT)
     # root.mainloop()

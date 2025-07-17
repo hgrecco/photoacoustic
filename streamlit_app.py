@@ -80,6 +80,7 @@ with st.form("Source data"):
     plot_intercept = st.checkbox("Plot non-zero intercept", value=True)
     plot_uncertainty_slope = st.checkbox("Plot uncertainty slope", value=False)
     plot_uncertainty_slope0 = st.checkbox("Plot uncertainty slope0", value=True)
+    max_energy = st.number_input("Max energy", value=50.0, step=.1)
 
     # Every form must have a submit button.
     submitted = st.form_submit_button("🚀 Analyze")
@@ -115,6 +116,7 @@ with st.form("Source data"):
                                 "plot_with_intercept": plot_intercept,
                                 "plot_uncertainty_slope" : plot_uncertainty_slope,
                                 "plot_uncertainty_slope0" : plot_uncertainty_slope0,
+                                "max_energy" : max_energy,
                                 }
                             )
                     folder_bar.empty()

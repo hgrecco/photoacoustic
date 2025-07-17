@@ -75,6 +75,7 @@ DEFAULT_OPTIONS = {
     "plot_with_intercept": True,
     "plot_uncertainty_slope" : False,
     "plot_uncertainty_slope0" : True,
+    "max_energy" : 20.0,
 }
 
 #################
@@ -171,6 +172,7 @@ class Options(TypedDict):
     plot_with_intercept: bool
     plot_uncertainty_slope: bool
     plot_uncertainty_slope0: bool
+    max_energy: float
 
 
 ###################
@@ -999,6 +1001,10 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
         trace_analysis["path"] = str(p.relative_to(experiment_folder))
         trace_analysis["repeat"] = ndx
         trace_analysis["energy"] = df.attrs["Laser energy before"]
+
+        if trace_analysis["energy"].nominal_value >= options["max_energy"]:
+            trace_analysis["include"] = False
+
         trace_analysis["include"] = (
                 trace_analysis["include"] and
                 options["trace_to_include"].get((str(p.relative_to(experiment_folder)), ndx), True)
@@ -1385,7 +1391,8 @@ if __name__ == "__main__":
     # path = ROOT / "2024-08-01" / "Air" / "10 Measurements"
     # analyze(path)
     #path = ROOT / "2024-08-09"
-    path = pathlib.Path('/home/tomi/Documents/academicos/becas/alemania/centech/lab/data/2025-01-21/oil_test/70')
-    analyze(path)
+    path = pathlib.Path('/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/70')
+    options = {**DEFAULT_OPTIONS, "max_energy":5.0}
+    analyze(path, options=options)
     # open_explorer(ROOT)
     # root.mainloop()

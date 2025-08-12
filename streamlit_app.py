@@ -81,6 +81,7 @@ with st.form("Source data"):
     plot_uncertainty_slope = st.checkbox("Plot uncertainty slope", value=False)
     plot_uncertainty_slope0 = st.checkbox("Plot uncertainty slope0", value=True)
     max_energy = st.number_input("Max energy", value=50.0, step=.1)
+    alpha_ref = st.number_input("Reference alpha value", value=1.0, min_value=0.01, max_value=1.0, step=0.05)
 
     # Every form must have a submit button.
     submitted = st.form_submit_button("🚀 Analyze")
@@ -117,6 +118,7 @@ with st.form("Source data"):
                                 "plot_uncertainty_slope" : plot_uncertainty_slope,
                                 "plot_uncertainty_slope0" : plot_uncertainty_slope0,
                                 "max_energy" : max_energy,
+                                "alpha_ref" : alpha_ref
                                 }
                             )
                     folder_bar.empty()

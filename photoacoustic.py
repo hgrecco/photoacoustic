@@ -76,6 +76,7 @@ DEFAULT_OPTIONS = {
     "plot_uncertainty_slope" : False,
     "plot_uncertainty_slope0" : True,
     "max_energy" : 20.0,
+    "alpha_ref" : 1.0,
 }
 
 #################
@@ -1269,6 +1270,8 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
 
     factor = (1 - 10**(-abs_ref)) / (1 - 10**(-abs_sam))
 
+    alpha_ref = options["alpha_ref"]
+
     for exc_wavelength, gdf in fit_df.groupby("exc_wavelength"):
 
         gdf_ref = gdf.query("sam_ref.str.startswith('ref')")
@@ -1281,8 +1284,8 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
                         "ref": row_ref["folder"],
                         "sam": row_sam["folder"],
                         "exc_wavelength": exc_wavelength,
-                        "alpha": row_sam["slope"] / row_ref["slope"] * factor,
-                        "alpha0": row_sam["slope0"] / row_ref["slope0"] * factor,
+                        "alpha": alpha_ref * row_sam["slope"] / row_ref["slope"] * factor,
+                        "alpha0": alpha_ref * row_sam["slope0"] / row_ref["slope0"] * factor,
                     }
                 )
 
@@ -1297,8 +1300,8 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
                     "ref": "avg",
                     "sam": row_sam["folder"],
                     "exc_wavelength": exc_wavelength,
-                    "alpha": row_sam["slope"] / ufloat_nanmean(*refs) * factor,
-                    "alpha0": row_sam["slope0"] / ufloat_nanmean(*refs0) * factor,
+                    "alpha": alpha_ref * row_sam["slope"] / ufloat_nanmean(*refs) * factor,
+                    "alpha0": alpha_ref * row_sam["slope0"] / ufloat_nanmean(*refs0) * factor,
                 }
             )
 
@@ -1392,7 +1395,7 @@ if __name__ == "__main__":
     # analyze(path)
     #path = ROOT / "2024-08-09"
     path = pathlib.Path('/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/70')
-    options = {**DEFAULT_OPTIONS, "max_energy":5.0}
+    options = {**DEFAULT_OPTIONS, "alpha_ref":0.8}
     analyze(path, options=options)
     # open_explorer(ROOT)
     # root.mainloop()

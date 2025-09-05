@@ -64,21 +64,6 @@ ATTRS_UNC = ("Laser energy before", "Laser energy after")
 UFLOAT0 = ufloat(0, 0)
 UFLOAT_NAN = ufloat(np.nan, np.nan)
 
-DEFAULT_OPTIONS = {
-    "savgol_window_length": 51,
-    "savgol_polyorder": 3,
-    "on_progress": print,
-    "on_error": print,
-    "plot_time_trace_rep": True,
-    "trace_to_include": {},
-    "pa_signal": "signal_delta",
-    "plot_with_intercept": True,
-    "plot_uncertainty_slope" : False,
-    "plot_uncertainty_slope0" : True,
-    "max_energy" : 20.0,
-    "alpha_ref" : 1.0,
-}
-
 #################
 # Typing related
 #################
@@ -174,6 +159,26 @@ class Options(TypedDict):
     plot_uncertainty_slope: bool
     plot_uncertainty_slope0: bool
     max_energy: float
+    alpha_ref: float
+    peak_threshold_factor: float
+
+
+def default_options() -> Options:
+    return {
+        "savgol_window_length": 51,
+        "savgol_polyorder": 3,
+        "on_progress": print,
+        "on_error": print,
+        "plot_time_trace_rep": True,
+        "trace_to_include": {},
+        "pa_signal": "signal_delta",
+        "plot_with_intercept": True,
+        "plot_uncertainty_slope" : False,
+        "plot_uncertainty_slope0" : True,
+        "max_energy" : 20.0,
+        "alpha_ref" : 1.0,
+        "peak_threshold_factor": 2
+    }
 
 
 ###################
@@ -688,7 +693,7 @@ def build_powerscan_figure(
         labels: Iterable[str],
         results: Iterable[odr.Output],
         results0: Iterable[odr.Output],
-        options: Options = DEFAULT_OPTIONS,
+        options: Options = default_options(),
         ) -> Figure:
     """_summary_
 
@@ -801,11 +806,15 @@ def build_powerscan_figure(
 # Analysis functions
 #####################
 
-def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None) -> list[tuple[Variable, Variable]]:
+def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None, options: Options | None = None) -> list[tuple[Variable, Variable]]:
     """Find upto first two peaks.
 
     Iterable of Time, Signal
     """
+
+    if options is None:
+        options = default_options()
+
     bg = signal[:500].mean() 
     std = signal[:500].std()
     
@@ -816,16 +825,22 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
     time_width = 1/4
 
     if signal_smooth is None:
-        signal_smooth = savgol_filter(signal, 51, 3)
+        signal_smooth = savgol_filter(
+            signal, 
+            options["savgol_window_length"], 
+            options["savgol_polyorder"],
+        )
 
     out = []
 
     # Find positive peaks
 
+    peak_threshold_factor = options["peak_threshold_factor"]
+
     ndxs, _props = find_peaks(
         -signal_smooth, 
-        height=-bg + 2 * std,
-        prominence=2*std,
+        height=-bg + peak_threshold_factor * std,
+        prominence=peak_threshold_factor*std,
         distance=time_distance * acq_frequency,
         width=time_width * acq_frequency,
     )
@@ -845,8 +860,8 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
 
     ndxs, _props = find_peaks(
         signal_smooth, 
-        height=bg + 2 * std,
-        prominence=2*std,
+        height=bg + peak_threshold_factor * std,
+        prominence=peak_threshold_factor * std,
         distance=time_distance * acq_frequency,
         width=time_width * acq_frequency,
     )
@@ -871,6 +886,7 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
 
     delta = np.abs(out["signal"].values - bg)
     sel = delta > np.max(delta) / 20 + std
+    out["sel1"] = sel
     out = out[sel].reset_index(drop=True)
 
     sign = np.sign(out["signal"].values - bg)
@@ -880,8 +896,11 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
     if len(best) == 0:
         return []
     
-    signal_best = out.iloc[best]["signal"]
-    
+    signal_best = out.iloc[best]["signal"].to_numpy()
+    signal_best /= np.max(signal_best)
+    # we consider that all peaks 30% smaller than the maximum
+    signal_best[signal_best>.7] = 1
+
     best = best[np.argmax(signal_best)]
 
     sel[best] = True
@@ -936,7 +955,8 @@ def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[Tr
     peaks = find_first_two_peaks(
         time, 
         signal, 
-        signal_smooth
+        signal_smooth,
+        options
     )
     
     # TODO: Just in case
@@ -1316,9 +1336,9 @@ def analyze(root: pathlib.Path, options: Options | None=None):
     """
 
     if options is None:
-        options = DEFAULT_OPTIONS
+        options = default_options()
     else:
-        options = {**DEFAULT_OPTIONS, **options}
+        options = {**default_options(), **options}
 
     try:
         with (root / "options.toml").open("rb") as f:
@@ -1394,8 +1414,9 @@ if __name__ == "__main__":
     # path = ROOT / "2024-08-01" / "Air" / "10 Measurements"
     # analyze(path)
     #path = ROOT / "2024-08-09"
-    path = pathlib.Path('/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/70')
-    options = {**DEFAULT_OPTIONS, "alpha_ref":0.8}
+    # path = pathlib.Path('/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/70')
+    path = pathlib.Path("/Users/grecco/Data/Cristian Strassert (Münster)/problema")
+    options = {**default_options(), "alpha_ref":0.8}
     analyze(path, options=options)
     # open_explorer(ROOT)
     # root.mainloop()

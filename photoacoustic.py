@@ -180,6 +180,13 @@ def default_options() -> Options:
         "peak_threshold_factor": 2
     }
 
+def get_line_colors() -> dict:
+    return {
+        'sam'   :   ['C0', 'C4', 'C6', 'C9'],
+        'ref0'  :   ['C1', 'C3', 'C5', 'C7'],
+        'ref1'  :   ['C2', 'C8', 'khaki', 'olivedrab'],
+    }
+
 
 ###################
 # Helper functions
@@ -724,18 +731,35 @@ def build_powerscan_figure(
     rowLabels = []
     rowColours = []
 
+    line_colors = get_line_colors()
     for (x, y), slope, intercept, slope0, label, result, result0 in zip(energy_delta_signal, *slope_intercepts, slopes0, labels, results, results0):
         x, x_unc = split_unc_tuple(*x)
         y, y_unc = split_unc_tuple(*y)
         
 
-        color = None
+        try:
+            if label.startswith(('ref0', 'ref1')):
+                color = get_line_colors()[label[:4]].pop(0)
+            elif label.startswith('sam'):
+                color = get_line_colors()['sam'].pop(0)
+            else:
+                color = None
+        except IndexError as ex:
+            options["on_error"](f"Ran out of line colors, changing to default")
+            color = None
+        except Exception as ex:
+            options["on_error"](f"An exception ocurred while trying to set line colors: {ex}")
+
         ls = None
 
         if options["plot_with_intercept"]:
             x_fit = np.linspace(0, np.max(x) * 1.1, 10)
             y_fit = slope.nominal_value * x_fit + intercept.nominal_value
-            line, = ax_plot.plot(x_fit, y_fit)
+            
+            if color is not None:
+                line, = ax_plot.plot(x_fit, y_fit, color=color)
+            else:
+                line, = ax_plot.plot(x_fit, y_fit)
 
             color = line.get_color()
             ls = ":"
@@ -1397,7 +1421,8 @@ if __name__ == "__main__":
     # from tkinter import filedialog
     # path = pathlib.Path(filedialog.askdirectory(initialdir="."))
     # root = Tk()
-    ROOT = pathlib.Path("/Users/grecco/Documents/projects/strassert/optoacustic/data") 
+    #ROOT = pathlib.Path("/Users/grecco/Documents/projects/strassert/optoacustic/data") 
+    #ROOT = pathlib.Path('/home/tomi/Documents/academicos/becas/alemania/centech/lab/data/2025-01-21/oil_test/70')
 
     # path = ROOT / "2024-07-16"
     # analyze(path)
@@ -1414,9 +1439,9 @@ if __name__ == "__main__":
     # path = ROOT / "2024-08-01" / "Air" / "10 Measurements"
     # analyze(path)
     #path = ROOT / "2024-08-09"
-    # path = pathlib.Path('/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/70')
-    path = pathlib.Path("/Users/grecco/Data/Cristian Strassert (Münster)/problema")
-    options = {**default_options(), "alpha_ref":0.8}
+    path = pathlib.Path('/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/70')
+    #path = pathlib.Path("/Users/grecco/Data/Cristian Strassert (Münster)/problema")
+    options = {**default_options(), "alpha_ref":1}
     analyze(path, options=options)
     # open_explorer(ROOT)
     # root.mainloop()

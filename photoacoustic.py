@@ -64,6 +64,19 @@ ATTRS_UNC = ("Laser energy before", "Laser energy after")
 UFLOAT0 = ufloat(0, 0)
 UFLOAT_NAN = ufloat(np.nan, np.nan)
 
+OPTIONS_TO_PRINT = [
+    "plot_time_trace_rep",
+    "plot_with_intercept",
+    "plot_uncertainty_slope",
+    "plot_uncertainty_slope0",
+    "max_energy",
+    "alpha_ref",
+    "peak_threshold_factor",
+    "savgol_window_length",
+    "savgol_polyorder",
+    "pa_signal",
+]
+
 #################
 # Typing related
 #################
@@ -692,6 +705,18 @@ def build_powerscan_overview_figure(signals: list[tuple[Array, Array]], energy: 
 
     return fig
 
+def build_options_figure(options: Options):
+    fig, ax = plt.subplots()
+    ax.axis('off')
+    cell_text = [[opt, options[opt]] for opt in OPTIONS_TO_PRINT]
+    table = plt.table(cellText=cell_text,
+              colLabels=["Parameter", "Value"],
+              loc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.2, 1.2)
+    return fig
+
 
 def build_powerscan_figure(
         energy_delta_signal: Iterable[tuple[Iterable[Variable], Iterable[Variable]]],
@@ -1287,6 +1312,11 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
             del tmp, tmp0, folders
 
         if pdf is not None:
+
+            fig = build_options_figure(options)
+            pdf.savefig(fig)
+            plt.close(fig)
+
             fig = build_powerscan_figure(
                 xys, 
                 (gdf["slope"].to_list(), gdf["intercept"].to_list()),
@@ -1443,5 +1473,6 @@ if __name__ == "__main__":
     #path = pathlib.Path("/Users/grecco/Data/Cristian Strassert (Münster)/problema")
     options = {**default_options(), "alpha_ref":1}
     analyze(path, options=options)
+    print(path)
     # open_explorer(ROOT)
     # root.mainloop()

@@ -1028,7 +1028,6 @@ def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[Tr
     sonic_energy = ufloat(np.sum(np.abs(signal_smooth[time_filter]) * dt) / (tf - ti), 0)
 
 
-
     return (
         {
         "path": "",
@@ -1239,7 +1238,7 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
             (slope, intercept), result = fit_linear(x[valid], y[valid], x_unc[valid], y_unc[valid])
             (slope0, _intercept0), result0 = fit_linear(x[valid], y[valid], x_unc[valid], y_unc[valid], intercept0=True)
         else:
-            options["on_error"]("Could not fit for {folder.stem}: not enough valid points")
+            options["on_error"](f"Could not fit for {folder.stem}: not enough valid points")
             slope = intercept = UFLOAT_NAN
             slope0 = _intercept0 = UFLOAT_NAN
             result, result0 = None, None

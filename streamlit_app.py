@@ -8,6 +8,13 @@ import platform
 import requests
 import photoacoustic
 
+PA_SIGNAL_TYPE_DICT = {
+    "Signal Delta" : "signal_delta", 
+    "Signal Peak 1" : "signal_peak1", 
+    "Signal Peak 2" : "signal_peak2", 
+    "Sonic Energy" : "sonic_energy"
+}
+
 st.set_page_config(
    page_title="Photoacoustic Analysis",
    page_icon="🧊",
@@ -83,6 +90,7 @@ with st.form("Source data"):
     max_energy = st.number_input("Max energy", value=50.0, step=.1)
     alpha_ref = st.number_input("Reference alpha value", value=1.0, min_value=0.01, max_value=1.0, step=0.05)
     peak_threshold_factor = st.number_input("Threshold factor", value=2.0, min_value=0.1, help="The threshold will be set to  mean(signal) + factor * std(signal)")
+    pa_signal_type = st.selectbox(label='Photoacoustic Signal', options=list(PA_SIGNAL_TYPE_DICT.keys()))
 
     # Every form must have a submit button.
     submitted = st.form_submit_button("🚀 Analyze")
@@ -121,6 +129,7 @@ with st.form("Source data"):
                                 "max_energy" : max_energy,
                                 "alpha_ref" : alpha_ref,
                                 "peak_threshold_factor": peak_threshold_factor,
+                                "pa_signal": PA_SIGNAL_TYPE_DICT[pa_signal_type]
                                 }
                             )
                     folder_bar.empty()

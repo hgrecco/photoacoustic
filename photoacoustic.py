@@ -124,6 +124,8 @@ class TraceAnalysis(TypedDict):
     time_delta: Variable
     signal_delta: Variable
 
+    sonic_energy: Variable
+
     include: bool
 
 class FileAnalysis(TypedDict):
@@ -167,7 +169,7 @@ class Options(TypedDict):
     on_error: Callable[[str,], None]
     plot_time_trace_rep: bool
     trace_to_include: dict[tuple[str, int], bool]
-    pa_signal: Literal["signal_delta", "signal_peak1", "signal_peak2"]
+    pa_signal: Literal["signal_delta", "signal_peak1", "signal_peak2", "sonic_energy"]
     plot_with_intercept: bool
     plot_uncertainty_slope: bool
     plot_uncertainty_slope0: bool
@@ -1012,8 +1014,20 @@ def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[Tr
     peaks.append((UFLOAT_NAN, UFLOAT_NAN))
     peaks.append((UFLOAT_NAN, UFLOAT_NAN))
 
-    time_delta  = peaks[0][0] - peaks[1][0]
-    signal_delta = peaks[0][1] - peaks[1][1]
+    first_peak = peaks[0]
+    second_peak = peaks[1]
+
+    time_delta  = first_peak[0] - second_peak[0]
+    signal_delta = first_peak[1] - second_peak[1]
+
+    ti = first_peak[0].nominal_value - 3
+    tf = second_peak[0].nominal_value + 3
+    dt = time[1] - time[0]
+    time_filter = np.logical_and(time > ti, time < tf)
+    # TBD: Add proper error propagation
+    sonic_energy = ufloat(np.sum(np.abs(signal_smooth[time_filter]) * dt) / (tf - ti), 0)
+
+
 
     return (
         {
@@ -1031,6 +1045,8 @@ def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[Tr
 
         "time_delta": time_delta,
         "signal_delta": signal_delta,
+
+        "sonic_energy": sonic_energy,
         }, 
         signal_smooth
     )
@@ -1469,9 +1485,9 @@ if __name__ == "__main__":
     # path = ROOT / "2024-08-01" / "Air" / "10 Measurements"
     # analyze(path)
     #path = ROOT / "2024-08-09"
-    path = pathlib.Path('/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/70')
+    path = pathlib.Path('/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/au-pt-au')
     #path = pathlib.Path("/Users/grecco/Data/Cristian Strassert (Münster)/problema")
-    options = {**default_options(), "alpha_ref":1}
+    options = {**default_options(), "alpha_ref":1, 'pa_signal':'sonic_energy'}
     analyze(path, options=options)
     print(path)
     # open_explorer(ROOT)

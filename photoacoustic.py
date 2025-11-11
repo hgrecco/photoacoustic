@@ -818,14 +818,17 @@ def build_powerscan_figure(
         )
 
         if options["plot_uncertainty_slope0"]:
-            xa = np.linspace(0, np.max(x) * 1.1, 100)
+            try:
+                xa = np.linspace(0, np.max(x) * 1.1, 100)
             
-            # Slope0
-            ya_unc = np.sqrt(xa**2 * result0.cov_beta[0,0] )
-            ya = slope0.nominal_value * xa
+                # Slope0
+                ya_unc = np.sqrt(xa**2 * result0.cov_beta[0,0] )
+                ya = slope0.nominal_value * xa
 
-            ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
-                                 color=line.get_color(), alpha=0.2)
+                ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
+                                     color=line.get_color(), alpha=0.2)
+            except Exception as e:
+                options['on_error'](f"Couldn't plot uncertainty of fit with origin 0: {e}")
 
         cellText.append(
             (label, f"${slope:.2uL}$", f"${intercept:.2uL}$", f"${slope0:.2uL}$"),

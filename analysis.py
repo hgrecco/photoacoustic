@@ -315,11 +315,12 @@ def analyze_time_trace(
         wavelength = np.nan
         exc_wavelength = np.nan
     else:
-        path = Path(alldf_attrs["PATH"])
+        path = Path(alldf_attrs.PATH)
         sample, wl, *metadata = path.stem.split("_")
-        description = alldf_attrs["Desc"]
+        description = alldf_attrs.Desc
         try:
-            wavelength = float(alldf_attrs["Wavelength"])
+            energy = alldf_attrs.Laser_energy_before
+            wavelength = float(alldf_attrs.Wavelength)
             exc_wavelength = float(wl)
         except ValueError:
             OPTIONS["on_error"]("Couldn't convert wavelength value to float")
@@ -365,7 +366,7 @@ def analyze_time_trace(
                 ),
             )
         ),
-        energy=UFLOAT_NAN,
+        energy=energy,
         time_peak1=peaks[0][0],
         signal_peak1=peaks[0][1],
         time_peak2=peaks[1][0],

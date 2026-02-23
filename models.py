@@ -39,7 +39,8 @@ class TraceAnalysis(TypedDict):
     exc_wavelength: float
 
 
-class TraceMetadata(TypedDict):
+@dataclass
+class TraceMetadata:
     __PA_REPEATS__: int
     __PA_TIME_UNITS__: str
     __PA_SIGNAL_UNITS__: str
@@ -63,6 +64,14 @@ class TraceMetadata(TypedDict):
     TriggerChannel: str
     Compression: str
     PATH: str
+    Type: str
+
+    @classmethod
+    def from_attrs(cls, attrs: dict[str, Any]):
+        attrs2 = {}
+        for key in attrs:
+            attrs2[key.replace(" ", "_")] = attrs[key]
+        return cls(**attrs2)
 
 
 @dataclass
@@ -79,7 +88,7 @@ class Trace:
         return cls(
             time=tracedf.time.to_numpy(),
             signal=tracedf.signal.to_numpy(),
-            metadata=TraceMetadata(**attrs),
+            metadata=TraceMetadata.from_attrs(attrs),
         )
 
     @property

@@ -6,11 +6,18 @@ from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpec
 import numpy as np
 import pandas as pd
+from uncertainties.core import Variable
 
 from models import Experiment, Trace
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from constants import OPTIONS, _footnote_timestamp, __version__
+from constants import OPTIONS, Array, _footnote_timestamp, __version__
+
+
+def get_powerscan_overview_name(foldername: str) -> str:
+    sample, wl, *metadata = foldername.split("_")
+    metadata_str = "-".join(metadata)
+    return f"_powerscan-overview_{sample}_{wl}_{metadata_str}.png"
 
 
 def get_time_trace_name(filename: str, repeat: int) -> str:
@@ -19,22 +26,79 @@ def get_time_trace_name(filename: str, repeat: int) -> str:
     return f"_time-trace_{sample}_{wl}_{str(repeat).zfill(3)}_{metadata_str}.png"
 
 
+def footnote(fig: Figure, *, left_footer: str = "", right_footer: str = ""):
+    """Add footnote to page."""
+
+    if left_footer:
+        fig.text(0.02, 0.01, left_footer, ha="left", fontsize=6, wrap=True)  # type: ignore
+    if right_footer:
+        fig.text(0.98, 0.01, right_footer, ha="right", fontsize=6, wrap=True)  # type: ignore
+
+
+def default_footnote(fig: Figure | None):
+    """Add default footnote to page, which includes the analysis
+    datetime and the script version.
+
+    To initialize the analysis datetime to current time,
+    call this function with None value.
+    """
+    global _footnote_timestamp
+    if fig is None:
+        _footnote_timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+    else:
+        footnote(
+            fig,
+            left_footer=f"Analysis datetime: {_footnote_timestamp}",
+            right_footer=f"Photoacoustic analysis version: {__version__}",
+        )
+
+
+def build_powerscan_overview_figure(
+    signals: list[tuple[Array, Array]], energy: Array
+) -> Figure:
+    fig, ax = plt.subplots(1, 1)
+
+    fig.set_figwidth(297 / 40)
+    fig.set_figheight(210 / 40)
+
+    ax.set_xlabel(r"$\Delta$time / $\mu s$")
+    ax.set_ylabel("signal / V")
+
+    try:
+        norm = colors.Normalize(vmin=energy.min(), vmax=energy.max())
+    except Exception:
+        norm = colors.Normalize(vmin=0, vmax=1)
+
+    for power, (time, signal) in zip(energy, signals):
+        ax.plot(time, signal, c=plt.cm.jet(norm(power)))
+
+    plt.colorbar(
+        plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.jet),
+        orientation="vertical",
+        ax=ax,
+        label=r"Laser power / $\mu J$",
+    )
+    default_footnote(fig)
+    plt.tight_layout()
+
+    return fig
+
+
 def save_all_figures(
     experiment: Experiment,
     overwrite: bool = False,
 ):
 
     for folderpath, powerscan in experiment.powerscans.items():
+        # TODO: program a way of getting a list of times and signasl from powerscan
+        signals: list[tuple[Array, Array]] = []
+        energies = []
         for (
             measurement_filepath,
             measurement_file,
         ) in powerscan.measurement_files.items():
             for repeat, trace in enumerate(measurement_file.traces):
-                filename = get_time_trace_name(str(measurement_filepath.name), repeat)
-
-                OPTIONS["on_progress"](
-                    f"building time trace figure {filename} repeat {repeat}"
-                )
+                filename = get_time_trace_name(str(measurement_filepath.stem), repeat)
 
                 figure_filepath = (
                     experiment.root / OPTIONS["figures_save_path"] / filename
@@ -42,11 +106,21 @@ def save_all_figures(
                 if not figure_filepath.parent.exists():
                     figure_filepath.parent.mkdir()
                 if not figure_filepath.exists() or overwrite:
+                    OPTIONS["on_progress"](
+                        f"building time trace figure {filename} repeat {repeat}"
+                    )
                     fig = build_time_trace_figure(trace)
                     fig.savefig(
                         experiment.root / OPTIONS["figures_save_path"] / filename,
                         dpi=200,
                     )
+                signals.append((trace.time, trace.signal))
+                energies.append(trace.analysis["energy"].nominal_value)
+        fig = build_powerscan_overview_figure(
+            signals=signals, energy=np.asarray(energies)
+        )
+        figname = get_powerscan_overview_name(folderpath.name)
+        fig.savefig(experiment.root / OPTIONS["figures_save_path"] / figname, dpi=200)
 
 
 def plot_signal_and_peaks(ax: Axes, trace: Trace):
@@ -187,6 +261,6 @@ def build_time_trace_figure(trace: Trace) -> Figure:
         ax_inset.axvline(x=lb, ls="-", c="black")
         ax_inset.axvline(x=ub, ls="-", c="black")
 
-    fig.tight_layout()
+    # fig.tight_layout()
 
     return fig

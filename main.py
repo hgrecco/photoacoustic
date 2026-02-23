@@ -24,7 +24,7 @@ class ExperimentEventHandler(FileSystemEventHandler):
         save_all_figures(self.experiment)
 
     def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
-        time.sleep(0.1)
+        time.sleep(0.01)
         p = pathlib.Path(str(event.src_path))
         self.experiment.update(p)
         save_all_figures(self.experiment)

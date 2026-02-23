@@ -1,4 +1,5 @@
 import time
+import warnings
 
 from models import Experiment
 import pathlib
@@ -9,6 +10,8 @@ from watchdog.events import (
 )
 from watchdog.observers import Observer
 
+from plotting import save_all_figures
+
 
 class ExperimentEventHandler(FileSystemEventHandler):
     def __init__(
@@ -18,15 +21,18 @@ class ExperimentEventHandler(FileSystemEventHandler):
         super().__init__()
 
         self.experiment = experiment
+        save_all_figures(self.experiment)
 
     def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
         time.sleep(0.1)
         p = pathlib.Path(str(event.src_path))
         self.experiment.update(p)
+        save_all_figures(self.experiment)
         print(self.experiment)
 
 
 def main():
+    warnings.catch_warnings(action="ignore")
     root = pathlib.Path(
         "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git/photoacoustic/test/watch_folder"
     )

@@ -22,6 +22,9 @@ __version__ = "2025.02.12"
 
 Array = npt.NDArray[np.float64]
 
+_footnote_timestamp: str | None = None
+__version__ = "2025.02.12"
+
 
 class Options(TypedDict):
     savgol_window_length: int

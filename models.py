@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Literal, TypeAlias, TypedDict
 
@@ -80,8 +81,6 @@ class Trace:
     signal: Array
     metadata: TraceMetadata
 
-    _analysis: TraceAnalysis | None = field(default=None, init=False, repr=False)
-
     @classmethod
     def from_trace_dataframe(cls, tracedf: TraceDataFrame):
         attrs: dict[str, Any] = tracedf.attrs
@@ -91,13 +90,11 @@ class Trace:
             metadata=TraceMetadata.from_attrs(attrs),
         )
 
-    @property
+    @cached_property
     def analysis(self) -> TraceAnalysis:
-        if self._analysis is None:
-            from analysis import analyze_time_trace
+        from analysis import analyze_time_trace
 
-            self._analysis = analyze_time_trace(self.time, self.signal, self.metadata)
-        return self._analysis
+        return analyze_time_trace(self.time, self.signal, self.metadata)
 
 
 @dataclass
@@ -268,7 +265,7 @@ class Experiment:
             )
 
     @property
-    def absorbance(self) -> dict[Literal["sam", "ref"], float]:
+    def absorbance(self) -> dict[Literal["sam", "ref"], float] | None:
         from input import read_absorbance
 
         if self._absorbance is None:

@@ -5,6 +5,21 @@ from pathlib import Path
 import random
 
 
+def initialize_watch_folder(
+    source_path: Path, filepaths: list[Path], dest_path: Path, num_files: int
+):
+    shutil.rmtree(dest_path)
+    os.mkdir(dest_path)
+    assert num_files < len(filepaths)
+    for i in range(num_files):
+        fp = filepaths.pop(0)
+        copy_path = dest_path / fp.relative_to(source_path)
+        os.makedirs(os.path.dirname(copy_path), exist_ok=True)
+        print(f"{fp=}\n{copy_path=}\n\n")
+        shutil.copy2(fp, copy_path)
+    return filepaths
+
+
 def main():
     source_path = Path(
         "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git/photoacoustic/test/data/cilindro"
@@ -14,12 +29,15 @@ def main():
     )
     paths = [p for p in source_path.rglob("*") if not p.is_dir()]
     random.shuffle(paths)
+    done_path = source_path / "done.txt"
+    paths.remove(done_path)
+
+    paths = initialize_watch_folder(source_path, paths, dest_path, random.randint(1, 5))
+
+    input("press enter to start data copying\n")
 
     for path in paths:
         print(path)
-        if path.name == "done.txt":
-            done_path = path
-            continue
         copy_path = dest_path / path.relative_to(source_path)
         print(f"coying {path} to {copy_path}")
         os.makedirs(os.path.dirname(copy_path), exist_ok=True)

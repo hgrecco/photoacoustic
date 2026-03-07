@@ -264,3 +264,167 @@ def build_time_trace_figure(trace: Trace) -> Figure:
     # fig.tight_layout()
 
     return fig
+
+
+def get_line_colors() -> dict:
+    return {
+        "sam": ["C0", "C4", "C6", "C9"],
+        "ref0": ["C1", "C3", "C5", "C7"],
+        "ref1": ["C2", "C8", "khaki", "olivedrab"],
+    }
+
+
+def split_unc_tuple(
+    *variables: Variable, container: type = tuple
+) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """Unzip iterable of uncertainties into a tuple of nominal value and a tuple of std dev"""
+    return container(v.nominal_value for v in variables), container(
+        v.std_dev for v in variables
+    )
+
+
+def plot_linear_with_intercept(
+    powerscan: PowerScan, ax_plot: Axes, color: ColorType | None
+):
+    x, x_unc = split_unc_tuple(*powerscan.analysis["energies"])
+    x_fit = np.linspace(0, np.max(x) * 1.1, 10)
+    y_fit = (
+        powerscan.analysis["slope"].nominal_value * x_fit
+        + powerscan.analysis["intercept"].nominal_value
+    )
+
+    if color is not None:
+        (line,) = ax_plot.plot(x_fit, y_fit, color=color)
+    else:
+        (line,) = ax_plot.plot(x_fit, y_fit)
+
+    color = line.get_color()
+
+    if OPTIONS["plot_uncertainty_slope"]:
+        xa = np.linspace(0, np.max(x) * 1.1, 100)
+
+        # Slope
+        ya_var = (
+            xa**2 * powerscan.analysis["result"].cov_beta[0, 0]
+            + powerscan.analysis["result"].cov_beta[1, 1]
+            + 2 * xa * powerscan.analysis["result"].cov_beta[0, 1]
+        )
+        ya_unc = np.sqrt(ya_var)
+        ya = (
+            powerscan.analysis["slope"].nominal_value * xa
+            + powerscan.analysis["intercept"].nominal_value
+        )
+
+        ax_plot.fill_between(
+            xa,
+            y1=ya - ya_unc,
+            y2=ya + ya_unc,
+            color=line.get_color(),
+            alpha=0.2,
+        )
+
+
+def plot_linear(powerscan: PowerScan, ax_plot: Axes, color: ColorType | None):
+    x, x_unc = split_unc_tuple(*powerscan.analysis["energies"])
+    y, y_unc = split_unc_tuple(*powerscan.analysis["pa_signals"])
+    x_fit = np.linspace(0, np.max(x) * 1.1, 10)
+    y_fit = powerscan.analysis["slope0"].nominal_value * x_fit
+    (line,) = ax_plot.plot(x_fit, y_fit, color=color)
+
+    ax_plot.errorbar(
+        x,
+        y,
+        xerr=x_unc,
+        yerr=y_unc,
+        linestyle="None",
+        marker=".",
+        color=line.get_color(),
+    )
+    if OPTIONS["plot_uncertainty_slope0"]:
+        try:
+            xa = np.linspace(0, np.max(x) * 1.1, 100)
+
+            # Slope0
+            ya_unc = np.sqrt(xa**2 * powerscan.analysis["result0"].cov_beta[0, 0])
+            ya = powerscan.analysis["slope0"].nominal_value * xa
+
+            ax_plot.fill_between(
+                xa,
+                y1=ya - ya_unc,
+                y2=ya + ya_unc,
+                color=line.get_color(),
+                alpha=0.2,
+            )
+        except Exception as e:
+            OPTIONS["on_error"](f"Couldn't plot uncertainty of fit with origin 0: {e}")
+
+
+def build_linear_fit_figure(powerscans: Iterable[PowerScan]) -> Figure:
+    fig, (ax_plot, ax_meta) = plt.subplots(
+        2, 1, gridspec_kw=dict(height_ratios=(0.7, 0.3))
+    )
+    fig.set_figwidth(297 / 40)
+    fig.set_figheight(210 / 40)
+
+    ax_plot.set_xlabel(r"Laser power / $\mu J$")
+    ax_plot.set_ylabel("PAS / V")
+    ax_plot.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
+
+    cellText = []
+    rowLabels = []
+    rowColours = []
+
+    for powerscan in powerscans:
+        powerscan.recompute_analysis()
+        label = powerscan.path.name
+        sample_name = label.split("_")[0]
+
+        slope = powerscan.analysis["slope"]
+        slope0 = powerscan.analysis["slope0"]
+        intercept = powerscan.analysis["intercept"]
+
+        color = None
+        if sample_name in ("ref0", "ref1", "sam"):
+            try:
+                color = get_line_colors()[sample_name][0]
+            except IndexError:
+                OPTIONS["on_error"]("Ran out of line colors, changing to default")
+            except Exception as ex:
+                OPTIONS["on_error"](
+                    f"An exception ocurred while trying to set line colors: {ex}"
+                )
+
+        if OPTIONS["plot_with_intercept"]:
+            plot_linear_with_intercept(powerscan, ax_plot, color)
+
+        plot_linear(powerscan, ax_plot, color)
+
+        cellText.append(
+            (label, f"${slope:.2uL}$", f"${intercept:.2uL}$", f"${slope0:.2uL}$"),
+        )
+
+        rowColours.append(color)
+        rowLabels.append("   ")
+
+    table = ax_meta.table(
+        cellText=cellText,
+        colLabels=(
+            "Subfolder",
+            r"Slope / $\left(V / \mu J \right)$",
+            "Intercept / $V$",
+            r"Slope0 / $\left(V / \mu J \right)$",
+        ),
+        loc="center",
+        rowColours=rowColours,
+        rowLabels=rowLabels,
+    )
+
+    table.auto_set_font_size(False)
+    table.set_fontsize(5)
+
+    ax_meta.axis(False)
+
+    default_footnote(fig)
+    fig.tight_layout()
+
+    return fig

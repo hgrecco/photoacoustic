@@ -168,6 +168,8 @@ class PowerScan:
     measurement_files: dict[Path, MeasurementFile]
     path: Path
 
+    _analysis: PowerscanAnalysis | None = field(default=None, init=False, repr=False)
+
     @classmethod
     def from_path(cls, path: Path):
         measurement_files = {}
@@ -179,11 +181,18 @@ class PowerScan:
             measurement_files[filepath] = MeasurementFile.from_path(filepath)
         return cls(measurement_files=measurement_files, path=path)
 
-    @cached_property
+    @property
     def analysis(self) -> PowerscanAnalysis:
+        if self._analysis is None:
+            from analysis import analyze_powerscan
+
+            self._analysis = analyze_powerscan(self)
+        return self._analysis
+
+    def recompute_analysis(self):
         from analysis import analyze_powerscan
 
-        return analyze_powerscan(self)
+        self._analysis = analyze_powerscan(self)
 
 
 @dataclass

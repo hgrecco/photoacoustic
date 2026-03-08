@@ -22,7 +22,7 @@ def initialize_watch_folder(
 
 def main():
     source_path = Path(
-        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git/photoacoustic/test/data/cilindro"
+        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git/photoacoustic/test/data/70"
     )
     dest_path = Path(
         "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git/photoacoustic/test/watch_folder"

@@ -6,11 +6,13 @@ from matplotlib import colors, ticker
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpec
+from matplotlib.typing import ColorType
 import numpy as np
 import pandas as pd
+from scipy import odr
 from uncertainties.core import Variable
 
-from models import Experiment, Trace
+from models import Experiment, PowerScan, Trace
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from constants import OPTIONS, Array, _footnote_timestamp, __version__
@@ -96,6 +98,7 @@ def save_all_figures(
         # TODO: program a way of getting a list of times and signasl from powerscan
         signals: list[tuple[Array, Array]] = []
         energies = []
+        new_trace_figure = False
         for (
             measurement_filepath,
             measurement_file,
@@ -117,13 +120,23 @@ def save_all_figures(
                         experiment.root / OPTIONS["figures_save_path"] / filename,
                         dpi=200,
                     )
+                    new_trace_figure = True
                 signals.append((trace.time, trace.signal))
                 energies.append(trace.analysis["energy"].nominal_value)
-        fig = build_powerscan_overview_figure(
-            signals=signals, energy=np.asarray(energies)
+
+        if new_trace_figure:
+            fig = build_powerscan_overview_figure(
+                signals=signals, energy=np.asarray(energies)
+            )
+            figname = get_powerscan_overview_name(folderpath.name)
+            fig.savefig(
+                experiment.root / OPTIONS["figures_save_path"] / figname, dpi=200
+            )
+    if new_trace_figure:
+        fig = build_linear_fit_figure(list(experiment.powerscans.values()))
+        fig.savefig(
+            experiment.root / OPTIONS["figures_save_path"] / "_linear_fit.png", dpi=200
         )
-        figname = get_powerscan_overview_name(folderpath.name)
-        fig.savefig(experiment.root / OPTIONS["figures_save_path"] / figname, dpi=200)
 
 
 def plot_signal_and_peaks(ax: Axes, trace: Trace):
@@ -332,7 +345,7 @@ def plot_linear(powerscan: PowerScan, ax_plot: Axes, color: ColorType | None):
     y, y_unc = split_unc_tuple(*powerscan.analysis["pa_signals"])
     x_fit = np.linspace(0, np.max(x) * 1.1, 10)
     y_fit = powerscan.analysis["slope0"].nominal_value * x_fit
-    (line,) = ax_plot.plot(x_fit, y_fit, color=color)
+    (line,) = ax_plot.plot(x_fit, y_fit, color=color, ls=":")
 
     ax_plot.errorbar(
         x,
@@ -379,6 +392,7 @@ def build_linear_fit_figure(powerscans: Iterable[PowerScan]) -> Figure:
 
     for powerscan in powerscans:
         powerscan.recompute_analysis()
+
         label = powerscan.path.name
         sample_name = label.split("_")[0]
 

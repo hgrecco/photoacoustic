@@ -9,6 +9,7 @@ from watchdog.events import (
     FileSystemEventHandler,
 )
 from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver
 
 from plotting import save_all_figures
 
@@ -26,9 +27,15 @@ class ExperimentEventHandler(FileSystemEventHandler):
     def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
         time.sleep(0.01)
         p = pathlib.Path(str(event.src_path))
-        self.experiment.update(p)
-        save_all_figures(self.experiment)
-        print(self.experiment)
+        # TODO: move this processing to a differen thread so that I don't have
+        # queue pile up problems
+        if not p.name.startswith("_") and not p.parent.name.startswith("_"):
+            print(f"creation event for: {p.name}")
+            self.experiment.update(p)
+            save_all_figures(self.experiment)
+            print(self.experiment)
+        else:
+            print(f"skipping for user prefix: {p.name}")
 
 
 def main():
@@ -41,7 +48,8 @@ def main():
     print(exp)
 
     event_handler = ExperimentEventHandler(exp)
-    observer = Observer()
+    # observer = Observer()
+    observer = PollingObserver(timeout=0.1)
     observer.schedule(
         event_handler,
         str(root),

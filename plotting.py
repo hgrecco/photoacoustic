@@ -1,4 +1,6 @@
 import datetime
+from pathlib import Path
+from typing import Iterable
 
 from matplotlib import colors, ticker
 from matplotlib.axes import Axes
@@ -20,10 +22,11 @@ def get_powerscan_overview_name(foldername: str) -> str:
     return f"_powerscan-overview_{sample}_{wl}_{metadata_str}.png"
 
 
-def get_time_trace_name(filename: str, repeat: int) -> str:
-    sample, wl, *metadata = filename.split("_")
+def get_time_trace_name(filepath: Path, repeat: int) -> str:
+    parent_powerscan = filepath.parent.name.split("_")[0]
+    sample, wl, *metadata = str(filepath.stem).split("_")
     metadata_str = "-".join(metadata)
-    return f"_time-trace_{sample}_{wl}_{str(repeat).zfill(3)}_{metadata_str}.png"
+    return f"_time-trace_{parent_powerscan}_{sample}_{wl}_{str(repeat).zfill(3)}_{metadata_str}.png"
 
 
 def footnote(fig: Figure, *, left_footer: str = "", right_footer: str = ""):
@@ -98,7 +101,7 @@ def save_all_figures(
             measurement_file,
         ) in powerscan.measurement_files.items():
             for repeat, trace in enumerate(measurement_file.traces):
-                filename = get_time_trace_name(str(measurement_filepath.stem), repeat)
+                filename = get_time_trace_name(measurement_filepath, repeat)
 
                 figure_filepath = (
                     experiment.root / OPTIONS["figures_save_path"] / filename

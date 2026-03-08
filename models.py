@@ -225,12 +225,15 @@ class Experiment:
 
         return cls(root, powerscans, _absorbance, done)
 
-    def update(self, path: Path) -> None:
+    # TODO: should probably move this method to the experiment handler instead
+    def update(self, path: Path) -> bool:
         from input import read_absorbance
+
+        updated = False
 
         if not path.is_relative_to(self.root):
             print(f"{path} not within {self.root}")
-            return
+            return updated
 
         relative_path = path.relative_to(self.root)
         depth = len(relative_path.parts)
@@ -239,6 +242,7 @@ class Experiment:
             if path.is_dir() and not path.name.startswith("_"):
                 print("New directory created")
                 self.powerscans[path] = PowerScan.from_path(path)
+                updated = True
             elif not path.is_dir() and path.name not in (
                 "abs.txt",
                 "done.txt",
@@ -247,9 +251,11 @@ class Experiment:
             elif path.name == "abs.txt":
                 print("Updating abs.txt path")
                 self._absorbance = read_absorbance(path)
+                updated = True
             elif path.name == "done.txt":
                 print("All experiment files are in the directory")
                 self.done = True
+                updated = True
             else:
                 raise RuntimeError("Unexpected error updating the directory structure")
         elif depth == 2:
@@ -258,16 +264,20 @@ class Experiment:
             elif path.name.startswith("_"):
                 print("skipping for user prefix")
             elif path.name.endswith(".txt"):
+                if path.parent not in self.powerscans.keys():
+                    self.powerscans[path.parent] = PowerScan.from_path(path.parent)
                 print(f"Adding file {relative_path.name} to {path.parent}")
                 self.powerscans[path.parent].measurement_files[path] = (
                     MeasurementFile.from_path(path)
                 )
+                updated = True
             else:
                 print(f"ignoring file {path.name} for not being txt")
         else:
             print(
                 f"Ignoring file or directory with depth {depth} in the experiment file structure"
             )
+        return updated
 
     @property
     def absorbance(self) -> dict[Literal["sam", "ref"], float] | None:

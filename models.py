@@ -8,7 +8,7 @@ import pandas as pd
 from scipy import odr
 from uncertainties.core import UFloat, Variable
 
-from constants import Array
+from constants import OPTIONS, Array
 
 FileDataFrame: TypeAlias = pd.DataFrame
 TraceDataFrame: TypeAlias = pd.DataFrame
@@ -149,6 +149,51 @@ class MeasurementFile:
             traces.append(trace)
         return cls(traces, metadata)
 
+    @property
+    def energy(self) -> Variable:
+        from analysis import ufloat_nanmean
+
+        return ufloat_nanmean(
+            *[
+                trace.analysis["energy"]
+                for trace in self.traces
+                if trace.analysis["include"]
+            ]
+        )
+
+    @property
+    def pa_signal(self) -> Variable:
+        from analysis import ufloat_nanmean
+
+        return ufloat_nanmean(
+            *[
+                trace.analysis[OPTIONS["pa_signal"]]
+                for trace in self.traces
+                if trace.analysis["include"]
+            ]
+        )
+
+    def to_pandas(self) -> pd.DataFrame:
+        records = []
+        for trace in self.traces:
+            path = Path(trace.metadata.PATH)
+            # TODO: maybe define this records dict somewhere else (like typed dict)
+            records.append(
+                {
+                    "path": path.relative_to(path.parent.parent),
+                    "repeat": trace.analysis["repeat"],
+                    "include": trace.analysis["include"],
+                    "energy": trace.analysis["energy"].nominal_value,
+                    "time_peak1": trace.analysis["time_peak1"].nominal_value,
+                    "signal_peak1": trace.analysis["signal_peak1"].nominal_value,
+                    "time_peak2": trace.analysis["time_peak2"].nominal_value,
+                    "signal_peak2": trace.analysis["signal_peak2"].nominal_value,
+                    "time_delta": trace.analysis["time_delta"].nominal_value,
+                    "signal_delta": trace.analysis["signal_delta"].nominal_value,
+                }
+            )
+        return pd.DataFrame.from_records(records)
+
 
 class PowerscanAnalysis(TypedDict):
     sam_ref: str
@@ -194,6 +239,26 @@ class PowerScan:
         from analysis import analyze_powerscan
 
         self._analysis = analyze_powerscan(self)
+
+    def to_pandas(self) -> pd.DataFrame:
+        records = []
+        for fp, measurement_file in self.measurement_files.items():
+            records.append(
+                {
+                    "path": fp.relative_to(self.path.parent),
+                    "description": measurement_file.metadata.Desc[0],
+                    "comment": measurement_file.metadata.Comment[0],
+                    "wavelength": measurement_file.metadata.Wavelength[0],
+                    "bandwidth": measurement_file.metadata.Bandwidth[0],
+                    "averages": measurement_file.metadata.Averages[0],
+                    "repeats": measurement_file.metadata.__PA_REPEATS__,
+                    "energy": measurement_file.energy.nominal_value,
+                    "energy_unc": measurement_file.energy.std_dev,
+                    "pa_signal": measurement_file.pa_signal.nominal_value,
+                    "pa_signal_unc": measurement_file.pa_signal.std_dev,
+                }
+            )
+        return pd.DataFrame.from_records(records)
 
 
 @dataclass

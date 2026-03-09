@@ -1,4 +1,10 @@
 
+
+**Date:** 2026-03-09 00:36:53
+
+Ok so now the figures are saved correctly and the summary pdf is built correctly, yet to achieve this I had to save figures as pickle, which makes it harder to build a real-time visualizer of the figures.
+
+
 **Date:** 2026-03-08 22:11:04
 
 figures are working now.

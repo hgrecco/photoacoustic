@@ -1,4 +1,5 @@
 from enum import Enum
+import threading
 import time
 import warnings
 
@@ -26,10 +27,12 @@ class ExperimentEventHandler(FileSystemEventHandler):
     def __init__(
         self,
         experiment: Experiment,
+        stop_event: threading.Event,
     ) -> None:
         super().__init__()
 
         self.experiment = experiment
+        self.stop_event = stop_event
         save_all_figures(self.experiment)
 
     def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
@@ -55,7 +58,7 @@ class ExperimentEventHandler(FileSystemEventHandler):
                 print(self.experiment)
             case Action.STOP_ANALYSIS:
                 print("stopping analysis")
-                return
+                self.stop_event.set()
             case Action.SKIP:
                 pass
 
@@ -104,7 +107,8 @@ def main():
 
     print(exp)
 
-    event_handler = ExperimentEventHandler(exp)
+    stop_event = threading.Event()
+    event_handler = ExperimentEventHandler(exp, stop_event)
     # observer = Observer()
     observer = PollingObserver(timeout=0.1)
     observer.schedule(
@@ -116,8 +120,11 @@ def main():
     observer.start()
 
     try:
-        while True:
+        while not stop_event.is_set():
             time.sleep(1)
+        observer.stop()
+        observer.join()
+        print("finishing up the analysis")
     finally:
         observer.stop()
         observer.join()

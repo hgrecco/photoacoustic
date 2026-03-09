@@ -15,6 +15,7 @@ from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
 from plotting import build_pdf, save_all_figures
+from xlsx import write_excel
 
 
 class Action(Enum):
@@ -111,7 +112,7 @@ def main():
     stop_event = threading.Event()
     event_handler = ExperimentEventHandler(exp, stop_event)
     # observer = Observer()
-    observer = PollingObserver(timeout=0.1)
+    observer = PollingObserver(timeout=0.01)
     observer.schedule(
         event_handler,
         str(root),
@@ -125,7 +126,10 @@ def main():
             time.sleep(1)
         observer.stop()
         observer.join()
+        print("building pdf summary")
         build_pdf(root)
+        print("building excel summary")
+        write_excel(root, exp)
         print("finishing up the analysis")
     finally:
         observer.stop()

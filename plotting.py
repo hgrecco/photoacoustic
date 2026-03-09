@@ -112,7 +112,9 @@ def save_all_figures(
                 filename = get_time_trace_name(measurement_filepath, repeat)
 
                 figure_filepath = (
-                    experiment.root / OPTIONS["figures_save_path"] / filename
+                    experiment.root
+                    / OPTIONS["figures_save_path"]
+                    / f"{filename}.pickle"
                 )
                 if not figure_filepath.parent.exists():
                     figure_filepath.parent.mkdir()
@@ -123,9 +125,7 @@ def save_all_figures(
                     fig = build_time_trace_figure(trace)
                     save_fig_to_pickle(
                         fig,
-                        experiment.root
-                        / OPTIONS["figures_save_path"]
-                        / f"{filename}.pickle",
+                        figure_filepath,
                     )
                     new_trace_figure = True
                 signals.append((trace.time, trace.signal))

@@ -171,6 +171,8 @@ def plot_signal_and_peaks(ax: Axes, trace: Trace):
     ax.set_xlabel(r"time / $\mu s$")
     ax.set_ylabel("signal / V")
 
+    ax.set_title("/".join(trace.metadata.PATH.split("/")[-2:]))
+
     for n in (1, 2):
         x = (
             trace.analysis["time_peak1"].nominal_value

@@ -179,7 +179,10 @@ def plot_signal_and_peaks(ax: Axes, trace: Trace):
     ax.set_xlabel(r"time / $\mu s$")
     ax.set_ylabel("signal / V")
 
-    ax.set_title("/".join(trace.metadata.PATH.split("/")[-2:]))
+    ax.set_title(
+        "/".join(trace.metadata.PATH.split("/")[-2:])
+        + f"\nrep ({trace.analysis['repeat']}/{trace.metadata.__PA_REPEATS__})"
+    )
 
     for n in (1, 2):
         x = (
@@ -326,6 +329,8 @@ def build_time_trace_figure(trace: Trace) -> Figure:
         ax_plot.set_xlim(lb, ub)
         ax_inset.axvline(x=lb, ls="-", c="black")
         ax_inset.axvline(x=ub, ls="-", c="black")
+
+    fig.tight_layout()
 
     return fig
 

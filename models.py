@@ -145,6 +145,7 @@ class MeasurementFile:
         traces = []
         for ndx, tracedf in yield_individual_repeats(filedf):
             trace = Trace.from_trace_dataframe(tracedf)
+            trace.analysis["repeat"] = ndx
             traces.append(trace)
         return cls(traces, metadata)
 

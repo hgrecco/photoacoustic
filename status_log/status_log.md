@@ -1,4 +1,12 @@
 
+**Date:** 2026-03-09 03:09:06
+
+starting excel writer implementation.
+It was mostly easy, I only have to add the final analysis to the experiment and that's it.
+
+Best regards,
+Tomás
+
 
 **Date:** 2026-03-09 00:36:53
 

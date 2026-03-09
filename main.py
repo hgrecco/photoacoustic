@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 import threading
 import time
 import warnings
@@ -19,10 +19,10 @@ from xlsx import write_excel
 
 
 class Action(Enum):
-    READ_ABSORBANCE = 1
-    READ_MEASUREMENT_FILE = 2
-    STOP_ANALYSIS = 3
-    SKIP = 4
+    READ_ABSORBANCE = auto()
+    READ_MEASUREMENT_FILE = auto()
+    STOP_ANALYSIS = auto()
+    SKIP = auto()
 
 
 class ExperimentEventHandler(FileSystemEventHandler):

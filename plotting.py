@@ -1,5 +1,6 @@
 import datetime
 from pathlib import Path
+import pickle
 from typing import Iterable
 
 from matplotlib import colors, ticker
@@ -21,14 +22,14 @@ from constants import OPTIONS, Array, _footnote_timestamp, __version__
 def get_powerscan_overview_name(foldername: str) -> str:
     sample, wl, *metadata = foldername.split("_")
     metadata_str = "-".join(metadata)
-    return f"_powerscan-overview_{sample}_{wl}_{metadata_str}.png"
+    return f"__powerscan-overview__{sample}__{wl}__{metadata_str}"
 
 
 def get_time_trace_name(filepath: Path, repeat: int) -> str:
-    parent_powerscan = filepath.parent.name.split("_")[0]
-    sample, wl, *metadata = str(filepath.stem).split("_")
+    sample = filepath.parent.name.split("_")[0]
+    _, wl, *metadata = str(filepath.stem).split("_")
     metadata_str = "-".join(metadata)
-    return f"_time-trace_{parent_powerscan}_{sample}_{wl}_{str(repeat).zfill(3)}_{metadata_str}.png"
+    return f"__time-trace__{sample}__{wl}__{str(repeat).zfill(3)}__{metadata_str}"
 
 
 def footnote(fig: Figure, *, left_footer: str = "", right_footer: str = ""):
@@ -89,6 +90,11 @@ def build_powerscan_overview_figure(
     return fig
 
 
+def save_fig_to_pickle(fig: Figure, path: Path):
+    with open(path, "wb") as f:
+        pickle.dump(fig, f)
+
+
 def save_all_figures(
     experiment: Experiment,
     overwrite: bool = False,
@@ -116,9 +122,11 @@ def save_all_figures(
                         f"building time trace figure {filename} repeat {repeat}"
                     )
                     fig = build_time_trace_figure(trace)
-                    fig.savefig(
-                        experiment.root / OPTIONS["figures_save_path"] / filename,
-                        dpi=200,
+                    save_fig_to_pickle(
+                        fig,
+                        experiment.root
+                        / OPTIONS["figures_save_path"]
+                        / f"{filename}.pickle",
                     )
                     new_trace_figure = True
                 signals.append((trace.time, trace.signal))
@@ -129,13 +137,14 @@ def save_all_figures(
                 signals=signals, energy=np.asarray(energies)
             )
             figname = get_powerscan_overview_name(folderpath.name)
-            fig.savefig(
-                experiment.root / OPTIONS["figures_save_path"] / figname, dpi=200
+            save_fig_to_pickle(
+                fig,
+                experiment.root / OPTIONS["figures_save_path"] / f"{figname}.pickle",
             )
     if new_trace_figure:
         fig = build_linear_fit_figure(list(experiment.powerscans.values()))
-        fig.savefig(
-            experiment.root / OPTIONS["figures_save_path"] / "_linear_fit.png", dpi=200
+        save_fig_to_pickle(
+            fig, experiment.root / OPTIONS["figures_save_path"] / "__linear_fit.pickle"
         )
 
 

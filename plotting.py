@@ -94,11 +94,11 @@ def save_all_figures(
     overwrite: bool = False,
 ):
 
+    new_trace_figure = False
     for folderpath, powerscan in experiment.powerscans.items():
         # TODO: program a way of getting a list of times and signasl from powerscan
         signals: list[tuple[Array, Array]] = []
         energies = []
-        new_trace_figure = False
         for (
             measurement_filepath,
             measurement_file,

@@ -43,7 +43,7 @@ def main():
         os.makedirs(os.path.dirname(copy_path), exist_ok=True)
         shutil.copy(path, copy_path)
 
-        time.sleep(1)
+        time.sleep(0.1)
     shutil.copy2(done_path, dest_path)
 
 

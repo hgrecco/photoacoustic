@@ -8,9 +8,8 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpec
 from matplotlib.typing import ColorType
+from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
-import pandas as pd
-from scipy import odr
 from uncertainties.core import Variable
 
 from models import Experiment, PowerScan, Trace
@@ -200,6 +199,47 @@ def plot_signal_and_peaks(ax: Axes, trace: Trace):
         ax.plot([x], [y], "x", c="tab:red")
 
 
+def sample_repeat_metadata_from_name(fname: str) -> tuple[str, int, str]:
+    samp, wl, repeat, metadata = fname.split("__")[2:]
+    repeat = int(repeat)
+    return samp, repeat, metadata
+
+
+def order_images(root: Path):
+    figs_path = root / OPTIONS["figures_save_path"]
+    time_trace_paths: dict[str, dict[str, dict[int, Path]]] = {}
+    powerscan_paths: dict[str, Path] = {}
+    for fp in figs_path.glob("*.pickle"):
+        if fp.stem.startswith("__time-trace"):
+            sample, repeat, metadata = sample_repeat_metadata_from_name(fp.stem)
+            if sample not in time_trace_paths.keys():
+                time_trace_paths[sample] = {}
+            if metadata not in time_trace_paths[sample].keys():
+                time_trace_paths[sample][metadata] = {}
+            time_trace_paths[sample][metadata][repeat] = fp
+        elif fp.stem.startswith("__powerscan-overview"):
+            sample = fp.stem.split("__")[2]
+            powerscan_paths[sample] = fp
+
+    assert sorted(list(time_trace_paths.keys())) == sorted(list(powerscan_paths.keys()))
+
+    ordered_paths = []
+    for sample, metadata_dicts in time_trace_paths.items():
+        for metadata, repeats_dict in metadata_dicts.items():
+            for i in range(len(repeats_dict.keys())):
+                ordered_paths.append(repeats_dict[i])
+        ordered_paths.append(powerscan_paths[sample])
+    return [*ordered_paths, figs_path / "__linear_fit.pickle"]
+
+
+def build_pdf(root: Path):
+    with PdfPages(root / "summary.pdf") as pdf:
+        for image_path in order_images(root):
+            with open(image_path, "rb") as f:
+                fig = pickle.load(f)
+                pdf.savefig(fig, dpi=200)
+
+
 def build_time_trace_figure(trace: Trace) -> Figure:
     """Plot a figure
 
@@ -277,7 +317,6 @@ def build_time_trace_figure(trace: Trace) -> Figure:
     )
     table.auto_set_font_size(False)
     table.set_fontsize(5)
-    # table.scale(1, 4)
 
     t0 = trace.analysis["time_peak1"]
     t1 = trace.analysis["time_peak2"]
@@ -287,8 +326,6 @@ def build_time_trace_figure(trace: Trace) -> Figure:
         ax_plot.set_xlim(lb, ub)
         ax_inset.axvline(x=lb, ls="-", c="black")
         ax_inset.axvline(x=ub, ls="-", c="black")
-
-    # fig.tight_layout()
 
     return fig
 

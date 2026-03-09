@@ -3,6 +3,7 @@ import threading
 import time
 import warnings
 
+from constants import OPTIONS
 from models import Experiment, MeasurementFile, PowerScan
 import pathlib
 from watchdog.events import (
@@ -13,7 +14,7 @@ from watchdog.events import (
 from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
-from plotting import save_all_figures
+from plotting import build_pdf, save_all_figures
 
 
 class Action(Enum):
@@ -124,6 +125,7 @@ def main():
             time.sleep(1)
         observer.stop()
         observer.join()
+        build_pdf(root)
         print("finishing up the analysis")
     finally:
         observer.stop()

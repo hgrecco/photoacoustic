@@ -217,6 +217,9 @@ class Experiment:
             if subfolder.stem.startswith("_"):
                 print(f"{subfolder}: skipping, user skip prefix.")
                 continue
+            if not any(subfolder.glob("*.txt")):
+                print(f"{subfolder}: skipping, folder without text files")
+                continue
 
             powerscans[subfolder] = PowerScan.from_path(subfolder)
 
@@ -225,60 +228,6 @@ class Experiment:
 
         return cls(root, powerscans, _absorbance, done)
 
-    # TODO: should probably move this method to the experiment handler instead
-    def update(self, path: Path) -> bool:
-        from input import read_absorbance
-
-        updated = False
-
-        if not path.is_relative_to(self.root):
-            print(f"{path} not within {self.root}")
-            return updated
-
-        relative_path = path.relative_to(self.root)
-        depth = len(relative_path.parts)
-
-        if depth == 1:
-            if path.is_dir() and not path.name.startswith("_"):
-                print("New directory created")
-                self.powerscans[path] = PowerScan.from_path(path)
-                updated = True
-            elif not path.is_dir() and path.name not in (
-                "abs.txt",
-                "done.txt",
-            ):
-                print(f"Ignoring file {path}")
-            elif path.name == "abs.txt":
-                print("Updating abs.txt path")
-                self._absorbance = read_absorbance(path)
-                updated = True
-            elif path.name == "done.txt":
-                print("All experiment files are in the directory")
-                self.done = True
-                updated = True
-            else:
-                raise RuntimeError("Unexpected error updating the directory structure")
-        elif depth == 2:
-            if path.is_dir():
-                print("Ignoring directory too deep in the experiment file structure")
-            elif path.name.startswith("_"):
-                print("skipping for user prefix")
-            elif path.name.endswith(".txt"):
-                if path.parent not in self.powerscans.keys():
-                    self.powerscans[path.parent] = PowerScan.from_path(path.parent)
-                print(f"Adding file {relative_path.name} to {path.parent}")
-                self.powerscans[path.parent].measurement_files[path] = (
-                    MeasurementFile.from_path(path)
-                )
-                updated = True
-            else:
-                print(f"ignoring file {path.name} for not being txt")
-        else:
-            print(
-                f"Ignoring file or directory with depth {depth} in the experiment file structure"
-            )
-        return updated
-
     @property
     def absorbance(self) -> dict[Literal["sam", "ref"], float] | None:
         from input import read_absorbance
@@ -286,6 +235,11 @@ class Experiment:
         if self._absorbance is None:
             self._absorbance = read_absorbance(self.root / "abs.txt")
         return self._absorbance
+
+    def set_absorbance(self, p: Path):
+        from input import read_absorbance
+
+        self._absorbance = read_absorbance(p)
 
     def __str__(self):
         return f"""

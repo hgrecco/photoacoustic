@@ -1,4 +1,9 @@
 
+**Date:** 2026-03-10 18:30:29
+
+Xlsx is done, only the __fit__ sheet is missing. 
+For sure I can do better work on the alpha analysis funciton.
+
 **Date:** 2026-03-09 03:09:06
 
 starting excel writer implementation.

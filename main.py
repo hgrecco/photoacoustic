@@ -60,6 +60,7 @@ class ExperimentEventHandler(FileSystemEventHandler):
                 print(self.experiment)
             case Action.STOP_ANALYSIS:
                 print("stopping analysis")
+                self.experiment.done = True
                 self.stop_event.set()
             case Action.SKIP:
                 pass
@@ -101,7 +102,7 @@ class ExperimentEventHandler(FileSystemEventHandler):
 
 
 def main():
-    warnings.catch_warnings(action="ignore")
+
     root = pathlib.Path(
         "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git/photoacoustic/test/watch_folder"
     )

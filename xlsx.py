@@ -1,15 +1,44 @@
 from pathlib import Path
 
+from openpyxl import load_workbook
+
+from analysis import compute_alpha
+from constants import OPTIONS
 from models import Experiment, MeasurementFile, PowerScan
 import pandas as pd
 
 
+def reorganize_sheets(path: Path):
+    """Reorganize sheets in an excel file"""
+    wb = load_workbook(path)
+    sheetnames = wb.sheetnames
+    for ndx, sheetname in enumerate(sheetnames, 0):
+        wb.move_sheet(sheetname, -ndx)
+
+    sheetnames = wb.sheetnames
+    for ndx, sheetname in enumerate(sheetnames, 0):
+        if sheetname.startswith("ref") or sheetname.startswith("sam"):
+            wb.move_sheet(sheetname, -ndx + 2)
+
+    wb.save(path)
+
+
 def write_excel(root: Path, exp: Experiment):
-    with pd.ExcelWriter(root / "summary.xlsx") as xlsx:
+    excel_path = root / "summary.xlsx"
+    with pd.ExcelWriter(excel_path) as xlsx:
         for _, powerscan in exp.powerscans.items():
             for _, measurement_file in powerscan.measurement_files.items():
                 write_file_sheet(xlsx, measurement_file)
             write_powerscan_sheet(xlsx, powerscan)
+        result = compute_alpha(exp)
+        if result is not None:
+            result.to_excel(
+                xlsx, sheet_name="__ALPHA__", startrow=0, index=False, header=True
+            )
+        else:
+            OPTIONS["on_error"]("failed to create results excel")
+
+    reorganize_sheets(excel_path)
 
 
 def write_file_sheet(xlsx: pd.ExcelWriter, measurement_file: MeasurementFile) -> None:
@@ -25,6 +54,3 @@ def write_file_sheet(xlsx: pd.ExcelWriter, measurement_file: MeasurementFile) ->
 
 def write_powerscan_sheet(xlsx: pd.ExcelWriter, powerscan: PowerScan) -> None:
     powerscan.to_pandas().to_excel(xlsx, sheet_name=powerscan.path.stem, index=False)
-
-
-# folder	sam_ref	exc_wavelength	description	slope	slope_unc	intercept	intercept_unc	slope0	slope0_unc	result	result0	p-value ref0 slope	p-value ref0 slope0

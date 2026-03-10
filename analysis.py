@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -8,6 +8,7 @@ from uncertainties.core import Variable, ufloat
 from scipy.signal import find_peaks, savgol_filter
 
 from models import (
+    Experiment,
     PowerScan,
     PowerscanAnalysis,
     TraceAnalysis,
@@ -18,6 +19,18 @@ from constants import Array, OPTIONS
 
 UFLOAT0 = ufloat(0, 0)
 UFLOAT_NAN = ufloat(np.nan, np.nan)
+
+
+class AlphaRecords(TypedDict):
+    abs_sam: float
+    abs_ref: float
+    ref: str
+    sam: str
+    exc_wavelength: float
+    alpha: float
+    alpha_unc: float
+    alpha0: float
+    alpha0_unc: float
 
 
 def ufloat_nanmean(*variables: Variable) -> Variable:
@@ -379,3 +392,79 @@ def analyze_time_trace(
         wavelength=wavelength,
         exc_wavelength=exc_wavelength,
     )
+
+
+def compute_alpha(exp: Experiment, force: bool = False) -> pd.DataFrame | None:
+    if not exp.done and not force:
+        condition = not exp.done and not force
+        print(f"{condition=}, {force=}, {exp.done=}")
+        return
+    elif force:
+        # TODO: program an "on_warning" function on the options
+        print("Forcing alpha calculation, this might fail.")
+    if exp.absorbance is None:
+        OPTIONS["on_error"]("samples absorbance not yet defined")
+        print("samples absorbance not yet defined")
+        return
+    if exp.sam_powerscan is None:
+        OPTIONS["on_error"]("no sample powerscan yet computed")
+        print("no sample powerscan yet computed")
+        return
+
+    # (m_sam / m_ref) = alpha * (1- 10^-(A_sam)) / (1- 10^-(A_ref))
+    abs_sam = exp.absorbance["sam"]
+    abs_ref = exp.absorbance["ref"]
+
+    alpha_ref = OPTIONS["alpha_ref"]
+
+    slope0_sam = exp.sam_powerscan.analysis["slope0"]
+    slope_sam = exp.sam_powerscan.analysis["slope"]
+
+    factor = (1 - 10 ** (-abs_ref)) / (1 - 10 ** (-abs_sam))
+
+    sam_path = ""
+    for p, pwsc in exp.powerscans.items():
+        if pwsc.analysis["sam_ref"] == "sam":
+            sam_path = p.name
+
+    alpha_records: list[AlphaRecords] = []
+
+    alphas = []
+    alpha0s = []
+    for path, powerscan in exp.powerscans.items():
+        if powerscan.analysis["sam_ref"] == "sam":
+            continue
+        slope_ref = powerscan.analysis["slope"]
+        slope0_ref = powerscan.analysis["slope0"]
+        alpha = alpha_ref * slope_sam / slope_ref * factor
+        alpha0 = alpha_ref * slope0_sam / slope0_ref * factor
+        alphas.append(alpha)
+        alpha0s.append(alpha0)
+        alpha_records.append(
+            AlphaRecords(
+                abs_sam=abs_sam,
+                abs_ref=abs_ref,
+                ref=path.name,
+                sam=sam_path,
+                exc_wavelength=powerscan.analysis["exc_wavelength"],
+                alpha=alpha.nominal_value,
+                alpha_unc=alpha.std_dev,
+                alpha0=alpha0.nominal_value,
+                alpha0_unc=alpha0.std_dev,
+            )
+        )
+
+    alpha_records.append(
+        AlphaRecords(
+            abs_sam=abs_sam,
+            abs_ref=abs_ref,
+            ref="avg",
+            sam=sam_path,
+            exc_wavelength=powerscan.analysis["exc_wavelength"],
+            alpha=ufloat_nanmean(*alphas).nominal_value,
+            alpha_unc=ufloat_nanmean(*alphas).std_dev,
+            alpha0=ufloat_nanmean(*alpha0s).nominal_value,
+            alpha0_unc=ufloat_nanmean(*alpha0s).std_dev,
+        )
+    )
+    return pd.DataFrame.from_records(alpha_records)

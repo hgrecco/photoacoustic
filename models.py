@@ -307,6 +307,12 @@ class Experiment:
 
         self._absorbance = read_absorbance(p)
 
+    @cached_property
+    def sam_powerscan(self) -> PowerScan | None:
+        for pwsc in self.powerscans.values():
+            if pwsc.analysis["sam_ref"] == "sam":
+                return pwsc
+
     def __str__(self):
         return f"""
 root: {self.root}

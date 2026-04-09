@@ -1,9 +1,8 @@
 from enum import Enum, auto
+import sys
 import threading
 import time
-import warnings
 
-from constants import OPTIONS
 from models import Experiment, MeasurementFile, PowerScan
 import pathlib
 from watchdog.events import (
@@ -11,7 +10,6 @@ from watchdog.events import (
     FileCreatedEvent,
     FileSystemEventHandler,
 )
-from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
 from plotting import build_pdf, save_all_figures
@@ -103,9 +101,7 @@ class ExperimentEventHandler(FileSystemEventHandler):
 
 def main():
 
-    root = pathlib.Path(
-        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git/photoacoustic/test/watch_folder"
-    )
+    root = pathlib.Path(sys.argv[1])
     exp = Experiment.from_path(root)
 
     print(exp)

@@ -8,7 +8,7 @@ import pandas as pd
 from scipy import odr
 from uncertainties.core import UFloat, Variable
 
-from src.photoacoustic.constants import OPTIONS, Array
+from constants import OPTIONS, Array
 
 FileDataFrame: TypeAlias = pd.DataFrame
 TraceDataFrame: TypeAlias = pd.DataFrame
@@ -92,7 +92,7 @@ class Trace:
 
     @cached_property
     def analysis(self) -> TraceAnalysis:
-        from src.photoacoustic.analysis import analyze_time_trace
+        from analysis import analyze_time_trace
 
         return analyze_time_trace(self.time, self.signal, self.metadata)
 
@@ -139,7 +139,7 @@ class MeasurementFile:
 
     @classmethod
     def from_path(cls, path: Path):
-        from src.photoacoustic.input import yield_individual_repeats, read
+        from input import yield_individual_repeats, read
 
         filedf, metadata = read(path)
         traces = []
@@ -151,7 +151,7 @@ class MeasurementFile:
 
     @property
     def energy(self) -> Variable:
-        from src.photoacoustic.analysis import ufloat_nanmean
+        from analysis import ufloat_nanmean
 
         return ufloat_nanmean(
             *[
@@ -163,7 +163,7 @@ class MeasurementFile:
 
     @property
     def pa_signal(self) -> Variable:
-        from src.photoacoustic.analysis import ufloat_nanmean
+        from analysis import ufloat_nanmean
 
         return ufloat_nanmean(
             *[
@@ -230,13 +230,13 @@ class PowerScan:
     @property
     def analysis(self) -> PowerscanAnalysis:
         if self._analysis is None:
-            from src.photoacoustic.analysis import analyze_powerscan
+            from analysis import analyze_powerscan
 
             self._analysis = analyze_powerscan(self)
         return self._analysis
 
     def recompute_analysis(self):
-        from src.photoacoustic.analysis import analyze_powerscan
+        from analysis import analyze_powerscan
 
         self._analysis = analyze_powerscan(self)
 
@@ -272,7 +272,7 @@ class Experiment:
 
     @classmethod
     def from_path(cls, p: Path):
-        from src.photoacoustic.input import read_absorbance
+        from input import read_absorbance
 
         root = p
         powerscans = {}
@@ -296,14 +296,14 @@ class Experiment:
 
     @property
     def absorbance(self) -> dict[Literal["sam", "ref"], float] | None:
-        from src.photoacoustic.input import read_absorbance
+        from input import read_absorbance
 
         if self._absorbance is None:
             self._absorbance = read_absorbance(self.root / "abs.txt")
         return self._absorbance
 
     def set_absorbance(self, p: Path):
-        from src.photoacoustic.input import read_absorbance
+        from input import read_absorbance
 
         self._absorbance = read_absorbance(p)
 

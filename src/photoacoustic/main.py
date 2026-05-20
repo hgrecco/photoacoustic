@@ -3,7 +3,7 @@ import sys
 import threading
 import time
 
-from src.photoacoustic.models import Experiment, MeasurementFile, PowerScan
+from models import Experiment, MeasurementFile, PowerScan
 import pathlib
 from watchdog.events import (
     DirCreatedEvent,
@@ -12,8 +12,8 @@ from watchdog.events import (
 )
 from watchdog.observers.polling import PollingObserver
 
-from src.photoacoustic.plotting import build_pdf, save_all_figures
-from src.photoacoustic.xlsx import write_excel
+from photoacoustic.plotting import build_pdf, save_all_figures
+from photoacoustic.xlsx import write_excel
 
 
 class Action(Enum):

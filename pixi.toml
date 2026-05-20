@@ -15,3 +15,6 @@ matplotlib = ">=3.9.2,<4"
 uncertainties = ">=3.2.2,<4"
 openpyxl = ">=3.1.5,<4"
 watchdog = "*"
+
+[pypi-dependencies]
+photoacoustic ={ path = ".", editable = true}

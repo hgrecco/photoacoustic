@@ -8,9 +8,9 @@ from typing import Any, Generator, Literal, Protocol
 
 from uncertainties.core import ufloat, ufloat_fromstr
 
-from src.photoacoustic.constants import OPTIONS, Array
+from constants import OPTIONS, Array
 
-from src.photoacoustic.models import FileDataFrame, FileMetadata, TraceDataFrame
+from models import FileDataFrame, FileMetadata, TraceDataFrame
 
 
 # Repeats is not included as metadata in the file.

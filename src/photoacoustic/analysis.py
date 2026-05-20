@@ -7,7 +7,7 @@ from scipy import odr
 from uncertainties.core import Variable, ufloat
 from scipy.signal import find_peaks, savgol_filter
 
-from models import (
+from src.photoacoustic.models import (
     Experiment,
     PowerScan,
     PowerscanAnalysis,
@@ -15,7 +15,7 @@ from models import (
     TraceMetadata,
 )
 
-from constants import Array, OPTIONS
+from src.photoacoustic.constants import Array, OPTIONS
 
 UFLOAT0 = ufloat(0, 0)
 UFLOAT_NAN = ufloat(np.nan, np.nan)

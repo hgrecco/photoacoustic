@@ -2,9 +2,9 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from analysis import compute_alpha
-from constants import OPTIONS
-from models import Experiment, MeasurementFile, PowerScan
+from src.photoacoustic.analysis import compute_alpha
+from src.photoacoustic.constants import OPTIONS
+from src.photoacoustic.models import Experiment, MeasurementFile, PowerScan
 import pandas as pd
 
 

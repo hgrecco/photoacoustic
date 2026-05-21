@@ -7,7 +7,15 @@ authors = [
     { name = "tdinapoli", email = "tomas.dina98@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "numpy>=2.1.2,<3",
+    "scipy>=1.14.1,<2",
+    "pandas>=2.2.3,<3",
+    "matplotlib>=3.9.2,<4",
+    "uncertainties>=3.2.2,<4",
+    "openpyxl>=3.1.5,<4",
+    "watchdog>=6.0.0",
+]
 
 [project.scripts]
 photoacoustic = "photoacoustic:main"
@@ -25,3 +33,7 @@ matplotlib = ">=3.9.2,<4"
 uncertainties = ">=3.2.2,<4"
 openpyxl = ">=3.1.5,<4"
 watchdog = "*"
+
+[tool.uv.build-backend]
+module-name = "photoacoustic"
+module-root = "src"

@@ -99,9 +99,9 @@ class ExperimentEventHandler(FileSystemEventHandler):
         return action
 
 
-def main():
+def main(root: pathlib.Path | str):
 
-    root = pathlib.Path(sys.argv[1])
+    root = pathlib.Path(root)
     exp = Experiment.from_path(root)
 
     print(exp)
@@ -134,4 +134,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    root = pathlib.Path(sys.argv[1])
+    main(root)

@@ -3158,7 +3158,15 @@ packages:
 - pypi: ./
   name: photoacoustic
   version: 0.1.0
-  sha256: 71ffdcb1e867a3ec6fa595fb66a42448c2fd4bad9905f81d1691c8decb4f5aed
+  sha256: 59765b998109e9d6b597c683d6adfdd8e5ebeea19cdc114fc94edf1d34f5d9a2
+  requires_dist:
+  - numpy>=2.1.2,<3
+  - scipy>=1.14.1,<2
+  - pandas>=2.2.3,<3
+  - matplotlib>=3.9.2,<4
+  - uncertainties>=3.2.2,<4
+  - openpyxl>=3.1.5,<4
+  - watchdog>=6.0.0
   requires_python: '>=3.12'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pillow-12.2.0-py312h50c33e8_0.conda
   sha256: fa291f8915114733dc1df9f1627b8c63c517217c1eee1a6ede2ceb5e368cf27a

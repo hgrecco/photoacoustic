@@ -241,6 +241,7 @@ def build_pdf(root: Path):
             with open(image_path, "rb") as f:
                 fig = pickle.load(f)
                 pdf.savefig(fig, dpi=200)
+                plt.close(fig)
 
 
 def build_time_trace_figure(trace: Trace) -> Figure:

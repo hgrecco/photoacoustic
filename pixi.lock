@@ -3158,7 +3158,7 @@ packages:
 - pypi: ./
   name: photoacoustic
   version: 0.1.0
-  sha256: 59765b998109e9d6b597c683d6adfdd8e5ebeea19cdc114fc94edf1d34f5d9a2
+  sha256: d03c98f0a228514d2d5217b4d2af13bbd38e25d09b62ed9574d6614071f7d77a
   requires_dist:
   - numpy>=2.1.2,<3
   - scipy>=1.14.1,<2

@@ -120,7 +120,7 @@ def save_all_figures(
                     figure_filepath.parent.mkdir()
                 if not figure_filepath.exists() or overwrite:
                     OPTIONS["on_progress"](
-                        f"building time trace figure {como estásfilename} repeat {repeat}"
+                        f"building time trace figure {filename} repeat {repeat}"
                     )
                     fig = build_time_trace_figure(trace)
                     save_fig_to_pickle(
@@ -244,7 +244,6 @@ def build_pdf(root: Path):
             with open(image_path, "rb") as f:
                 fig = pickle.load(f)
                 pdf.savefig(fig, dpi=200)
-                plt.close(fig)
 
 
 def build_time_trace_figure(trace: Trace) -> Figure:

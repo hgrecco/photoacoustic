@@ -120,13 +120,14 @@ def save_all_figures(
                     figure_filepath.parent.mkdir()
                 if not figure_filepath.exists() or overwrite:
                     OPTIONS["on_progress"](
-                        f"building time trace figure {filename} repeat {repeat}"
+                        f"building time trace figure {como estásfilename} repeat {repeat}"
                     )
                     fig = build_time_trace_figure(trace)
                     save_fig_to_pickle(
                         fig,
                         figure_filepath,
                     )
+                    plt.close(fig)
                     new_trace_figure = True
                 signals.append((trace.time, trace.signal))
                 energies.append(trace.analysis["energy"].nominal_value)
@@ -140,11 +141,13 @@ def save_all_figures(
                 fig,
                 experiment.root / OPTIONS["figures_save_path"] / f"{figname}.pickle",
             )
+            plt.close(fig)
     if new_trace_figure:
         fig = build_linear_fit_figure(list(experiment.powerscans.values()))
         save_fig_to_pickle(
             fig, experiment.root / OPTIONS["figures_save_path"] / "__linear_fit.pickle"
         )
+        plt.close(fig)
 
 
 def plot_signal_and_peaks(ax: Axes, trace: Trace):

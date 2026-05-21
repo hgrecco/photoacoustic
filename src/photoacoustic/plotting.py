@@ -12,10 +12,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 from uncertainties.core import Variable
 
-from models import Experiment, PowerScan, Trace
+from .models import Experiment, PowerScan, Trace
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from constants import OPTIONS, Array, _footnote_timestamp, __version__
+from .constants import OPTIONS, Array, _footnote_timestamp, __version__
 
 
 def get_powerscan_overview_name(foldername: str) -> str:

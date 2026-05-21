@@ -2,9 +2,9 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from analysis import compute_alpha
-from constants import OPTIONS
-from models import Experiment, MeasurementFile, PowerScan
+from .analysis import compute_alpha
+from .constants import OPTIONS
+from .models import Experiment, MeasurementFile, PowerScan
 import pandas as pd
 
 

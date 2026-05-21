@@ -3,6 +3,8 @@ import sys
 import threading
 import time
 
+import matplotlib
+
 from photoacoustic.models import Experiment, MeasurementFile, PowerScan
 import pathlib
 from watchdog.events import (
@@ -100,6 +102,8 @@ class ExperimentEventHandler(FileSystemEventHandler):
 
 
 def main(root: pathlib.Path | str):
+
+    matplotlib.use("Agg")
 
     root = pathlib.Path(root)
     exp = Experiment.from_path(root)

@@ -125,11 +125,13 @@ def save_all_figures(
                     fig = build_time_trace_figure(trace)
                     save_fig_to_pickle(
                         fig,
-                        figure_filepath,
+                        experiment.root
+                        / OPTIONS["figures_save_path"]
+                        / "__last_plot.pickle",
                     )
                     plt.close(fig)
                     new_trace_figure = True
-                signals.append((trace.time, trace.signal))
+                signals.append((trace.time, trace.analysis["signal_smooth"]))
                 energies.append(trace.analysis["energy"].nominal_value)
 
         if new_trace_figure:
@@ -140,6 +142,10 @@ def save_all_figures(
             save_fig_to_pickle(
                 fig,
                 experiment.root / OPTIONS["figures_save_path"] / f"{figname}.pickle",
+            )
+            save_fig_to_pickle(
+                fig,
+                experiment.root / OPTIONS["figures_save_path"] / "__last_plot.pickle",
             )
             plt.close(fig)
     if new_trace_figure:

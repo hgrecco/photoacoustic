@@ -125,9 +125,7 @@ def save_all_figures(
                     fig = build_time_trace_figure(trace)
                     save_fig_to_pickle(
                         fig,
-                        experiment.root
-                        / OPTIONS["figures_save_path"]
-                        / "__last_plot.pickle",
+                        figure_filepath,
                     )
                     plt.close(fig)
                     new_trace_figure = True

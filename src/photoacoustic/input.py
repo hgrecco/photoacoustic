@@ -4,11 +4,13 @@ import numpy as np
 import pandas as pd
 
 from pathlib import Path
-from typing import Any, Generator, Literal, Protocol
+from typing import Any, Callable, Generator, Literal, Protocol
 
 from uncertainties.core import ufloat, ufloat_fromstr
 
-from photoacoustic.constants import OPTIONS, Array
+from photoacoustic.constants import Array, OnErrorFunc
+import photoacoustic.constants as constants
+# from photoacoustic.constants import OPTIONS
 
 from photoacoustic.models import FileDataFrame, FileMetadata, TraceDataFrame
 
@@ -159,7 +161,9 @@ def read(p: Path | str) -> tuple[FileDataFrame, FileMetadata]:
             return read_with_repeats(p)
 
 
-def read_absorbance(path: Path) -> dict[Literal["sam", "ref"], float]:
+def read_absorbance(
+    path: Path, on_error: OnErrorFunc = constants.on_error_default
+) -> dict[Literal["sam", "ref"], float]:
     absorbances = {}
     try:
         for line in path.read_text().splitlines():
@@ -168,11 +172,11 @@ def read_absorbance(path: Path) -> dict[Literal["sam", "ref"], float]:
             if k in ("sam", "ref"):
                 absorbances[k] = float(v.strip())
             else:
-                OPTIONS["on_error"](f"absorbance name should be sam or ref, not {k}")
+                on_error(f"absorbance name should be sam or ref, not {k}")
         if sorted(list(absorbances.keys())) != ["ref", "sam"]:
-            OPTIONS["on_error"]("absorption abs.txt file incomplete")
+            on_error("absorption abs.txt file incomplete")
     except Exception as ex:
-        OPTIONS["on_error"](f"Absorption values could not be loaded: {str(ex)}")
+        on_error(f"Absorption values could not be loaded: {str(ex)}")
     return absorbances
 
 

@@ -3,7 +3,9 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from photoacoustic.analysis import compute_alpha
-from photoacoustic.constants import OPTIONS
+
+# from photoacoustic.constants import OPTIONS
+from photoacoustic.constants import Options
 from photoacoustic.models import Experiment, MeasurementFile, PowerScan
 import pandas as pd
 
@@ -28,29 +30,35 @@ def write_excel(root: Path, exp: Experiment):
     with pd.ExcelWriter(excel_path) as xlsx:
         for _, powerscan in exp.powerscans.items():
             for _, measurement_file in powerscan.measurement_files.items():
-                write_file_sheet(xlsx, measurement_file)
-            write_powerscan_sheet(xlsx, powerscan)
+                write_file_sheet(xlsx, measurement_file, exp.options)
+            write_powerscan_sheet(xlsx, powerscan, exp.options)
         result = compute_alpha(exp)
         if result is not None:
             result.to_excel(
                 xlsx, sheet_name="__ALPHA__", startrow=0, index=False, header=True
             )
         else:
-            OPTIONS["on_error"]("failed to create results excel")
+            exp.options["on_error"]("failed to create results excel")
 
     reorganize_sheets(excel_path)
 
 
-def write_file_sheet(xlsx: pd.ExcelWriter, measurement_file: MeasurementFile) -> None:
+def write_file_sheet(
+    xlsx: pd.ExcelWriter, measurement_file: MeasurementFile, options: Options
+) -> None:
     path = Path(measurement_file.metadata.PATH)
     try:
         prefix = "(%s)" % path.parent.stem.split("_")[0]
     except Exception:
         prefix = "(?)"
-    measurement_file.to_pandas().to_excel(
+    measurement_file.to_pandas(options).to_excel(
         xlsx, sheet_name=prefix + " " + path.stem, startrow=0, index=False, header=True
     )
 
 
-def write_powerscan_sheet(xlsx: pd.ExcelWriter, powerscan: PowerScan) -> None:
-    powerscan.to_pandas().to_excel(xlsx, sheet_name=powerscan.path.stem, index=False)
+def write_powerscan_sheet(
+    xlsx: pd.ExcelWriter, powerscan: PowerScan, options: Options
+) -> None:
+    powerscan.to_pandas(options).to_excel(
+        xlsx, sheet_name=powerscan.path.stem, index=False
+    )

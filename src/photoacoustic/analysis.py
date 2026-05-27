@@ -15,7 +15,8 @@ from photoacoustic.models import (
     TraceMetadata,
 )
 
-from photoacoustic.constants import Array, OPTIONS
+from photoacoustic.constants import Array, Options
+# from photoacoustic.constants import OPTIONS
 
 UFLOAT0 = ufloat(0, 0)
 UFLOAT_NAN = ufloat(np.nan, np.nan)
@@ -123,7 +124,7 @@ def split_unc_tuple(
     )
 
 
-def analyze_powerscan(powerscan: PowerScan) -> PowerscanAnalysis:
+def analyze_powerscan(powerscan: PowerScan, options: Options) -> PowerscanAnalysis:
     """Analyze a powerscan folder to the slope and intercept
     of the delta signal vs energy.
     """
@@ -151,8 +152,8 @@ def analyze_powerscan(powerscan: PowerScan) -> PowerscanAnalysis:
         _energies = []
         for trace in measurement_file.traces:
             _signals.append((trace.time, trace.signal))
-            _pa_signals.append(trace.analysis[OPTIONS["pa_signal"]])
-            _energies.append(trace.analysis["energy"])
+            _pa_signals.append(trace.get_analysis(options)[options["pa_signal"]])
+            _energies.append(trace.get_analysis(options)["energy"])
 
         if len(_signals) == 0:
             continue
@@ -181,7 +182,7 @@ def analyze_powerscan(powerscan: PowerScan) -> PowerscanAnalysis:
                 x[valid], y[valid], x_unc[valid], y_unc[valid], intercept0=True
             )
         else:
-            OPTIONS["on_error"](
+            options["on_error"](
                 f"Could not fit for {folder.stem}: not enough valid points"
             )
             slope = intercept = UFLOAT_NAN
@@ -189,7 +190,7 @@ def analyze_powerscan(powerscan: PowerScan) -> PowerscanAnalysis:
             result, result0 = None, None
 
     except Exception as ex:
-        OPTIONS["on_error"](f"Could not fit for {folder.stem}: {str(ex)}")
+        options["on_error"](f"Could not fit for {folder.stem}: {str(ex)}")
         slope = intercept = UFLOAT_NAN
         slope0 = _intercept0 = UFLOAT_NAN
         result, result0 = None, None
@@ -212,6 +213,7 @@ def find_first_two_peaks(
     time: Array,
     signal: Array,
     signal_smooth: Array | None,
+    options: Options,
 ) -> list[tuple[Variable, Variable]]:
     """Find upto first two peaks.
 
@@ -230,15 +232,15 @@ def find_first_two_peaks(
     if signal_smooth is None:
         signal_smooth = savgol_filter(
             signal,
-            OPTIONS["savgol_window_length"],
-            OPTIONS["savgol_polyorder"],
+            options["savgol_window_length"],
+            options["savgol_polyorder"],
         )
 
     out = []
 
     # Find positive peaks
 
-    peak_threshold_factor = OPTIONS["peak_threshold_factor"]
+    peak_threshold_factor = options["peak_threshold_factor"]
 
     ndxs, _props = find_peaks(
         -signal_smooth,
@@ -319,7 +321,7 @@ def find_first_two_peaks(
 
 
 def analyze_time_trace(
-    time: Array, signal: Array, alldf_attrs: TraceMetadata | None = None
+    time: Array, signal: Array, options, alldf_attrs: TraceMetadata | None = None
 ) -> TraceAnalysis:
     """Find the first two peaks to obtain the time and signal delta."""
 
@@ -336,15 +338,15 @@ def analyze_time_trace(
             wavelength = float(alldf_attrs.Wavelength)
             exc_wavelength = float(wl)
         except ValueError:
-            OPTIONS["on_error"]("Couldn't convert wavelength value to float")
+            options["on_error"]("Couldn't convert wavelength value to float")
             wavelength = np.nan
             exc_wavelength = np.nan
 
     signal_smooth: Array = savgol_filter(
-        signal, OPTIONS["savgol_window_length"], OPTIONS["savgol_polyorder"]
+        signal, options["savgol_window_length"], options["savgol_polyorder"]
     )
 
-    peaks = find_first_two_peaks(time, signal, signal_smooth)
+    peaks = find_first_two_peaks(time, signal, signal_smooth, options)
 
     # TODO: Just in case
     peaks.append((UFLOAT_NAN, UFLOAT_NAN))
@@ -403,11 +405,11 @@ def compute_alpha(exp: Experiment, force: bool = False) -> pd.DataFrame | None:
         # TODO: program an "on_warning" function on the options
         print("Forcing alpha calculation, this might fail.")
     if exp.absorbance is None:
-        OPTIONS["on_error"]("samples absorbance not yet defined")
+        exp.options["on_error"]("samples absorbance not yet defined")
         print("samples absorbance not yet defined")
         return
     if exp.sam_powerscan is None:
-        OPTIONS["on_error"]("no sample powerscan yet computed")
+        exp.options["on_error"]("no sample powerscan yet computed")
         print("no sample powerscan yet computed")
         return
 
@@ -415,16 +417,16 @@ def compute_alpha(exp: Experiment, force: bool = False) -> pd.DataFrame | None:
     abs_sam = exp.absorbance["sam"]
     abs_ref = exp.absorbance["ref"]
 
-    alpha_ref = OPTIONS["alpha_ref"]
+    alpha_ref = exp.options["alpha_ref"]
 
-    slope0_sam = exp.sam_powerscan.analysis["slope0"]
-    slope_sam = exp.sam_powerscan.analysis["slope"]
+    slope0_sam = exp.sam_powerscan.get_analysis(exp.options)["slope0"]
+    slope_sam = exp.sam_powerscan.get_analysis(exp.options)["slope"]
 
     factor = (1 - 10 ** (-abs_ref)) / (1 - 10 ** (-abs_sam))
 
     sam_path = ""
     for p, pwsc in exp.powerscans.items():
-        if pwsc.analysis["sam_ref"] == "sam":
+        if pwsc.get_analysis(exp.options)["sam_ref"] == "sam":
             sam_path = p.name
 
     alpha_records: list[AlphaRecords] = []
@@ -432,10 +434,10 @@ def compute_alpha(exp: Experiment, force: bool = False) -> pd.DataFrame | None:
     alphas = []
     alpha0s = []
     for path, powerscan in exp.powerscans.items():
-        if powerscan.analysis["sam_ref"] == "sam":
+        if powerscan.get_analysis(exp.options)["sam_ref"] == "sam":
             continue
-        slope_ref = powerscan.analysis["slope"]
-        slope0_ref = powerscan.analysis["slope0"]
+        slope_ref = powerscan.get_analysis(exp.options)["slope"]
+        slope0_ref = powerscan.get_analysis(exp.options)["slope0"]
         alpha = alpha_ref * slope_sam / slope_ref * factor
         alpha0 = alpha_ref * slope0_sam / slope0_ref * factor
         alphas.append(alpha)
@@ -446,7 +448,7 @@ def compute_alpha(exp: Experiment, force: bool = False) -> pd.DataFrame | None:
                 abs_ref=abs_ref,
                 ref=path.name,
                 sam=sam_path,
-                exc_wavelength=powerscan.analysis["exc_wavelength"],
+                exc_wavelength=powerscan.get_analysis(exp.options)["exc_wavelength"],
                 alpha=alpha.nominal_value,
                 alpha_unc=alpha.std_dev,
                 alpha0=alpha0.nominal_value,
@@ -460,7 +462,7 @@ def compute_alpha(exp: Experiment, force: bool = False) -> pd.DataFrame | None:
             abs_ref=abs_ref,
             ref="avg",
             sam=sam_path,
-            exc_wavelength=powerscan.analysis["exc_wavelength"],
+            exc_wavelength=powerscan.get_analysis(exp.options)["exc_wavelength"],
             alpha=ufloat_nanmean(*alphas).nominal_value,
             alpha_unc=ufloat_nanmean(*alphas).std_dev,
             alpha0=ufloat_nanmean(*alpha0s).nominal_value,

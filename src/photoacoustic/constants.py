@@ -26,7 +26,21 @@ _footnote_timestamp: str | None = None
 __version__ = "2025.02.12"
 
 
-class Options(TypedDict):
+PaSignal = Literal["signal_delta", "signal_peak1", "signal_peak2", "sonic_energy"]
+
+OnErrorFunc = Callable[[str], None]
+
+on_error_default: OnErrorFunc = lambda e: None
+
+
+class LinearPlotOptions(TypedDict):
+    on_error: OnErrorFunc
+    plot_with_intercept: bool
+    plot_uncertainty_slope: bool
+    plot_uncertainty_slope0: bool
+
+
+class Options(LinearPlotOptions):
     savgol_window_length: int
     savgol_polyorder: int
     on_progress: Callable[
@@ -35,18 +49,9 @@ class Options(TypedDict):
         ],
         None,
     ]
-    on_error: Callable[
-        [
-            str,
-        ],
-        None,
-    ]
     plot_time_trace_rep: bool
     trace_to_include: dict[tuple[str, int], bool]
-    pa_signal: Literal["signal_delta", "signal_peak1", "signal_peak2", "sonic_energy"]
-    plot_with_intercept: bool
-    plot_uncertainty_slope: bool
-    plot_uncertainty_slope0: bool
+    pa_signal: PaSignal
     max_energy: float
     alpha_ref: float
     peak_threshold_factor: float

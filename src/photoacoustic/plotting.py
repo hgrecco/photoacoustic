@@ -15,7 +15,13 @@ from uncertainties.core import Variable
 from photoacoustic.models import Experiment, PowerScan, Trace
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from photoacoustic.constants import OPTIONS, Array, _footnote_timestamp, __version__
+from photoacoustic.constants import (
+    Array,
+    Options,
+    _footnote_timestamp,
+    __version__,
+)
+# from photoacoustic.constants import OPTIONS
 
 
 def get_powerscan_overview_name(foldername: str) -> str:
@@ -113,24 +119,31 @@ def save_all_figures(
 
                 figure_filepath = (
                     experiment.root
-                    / OPTIONS["figures_save_path"]
+                    / experiment.options["figures_save_path"]
                     / f"{filename}.pickle"
                 )
                 if not figure_filepath.parent.exists():
                     figure_filepath.parent.mkdir()
                 if not figure_filepath.exists() or overwrite:
-                    OPTIONS["on_progress"](
+                    experiment.options["on_progress"](
                         f"building time trace figure {filename} repeat {repeat}"
                     )
-                    fig = build_time_trace_figure(trace)
+                    fig = build_time_trace_figure(trace, experiment.options)
                     save_fig_to_pickle(
                         fig,
                         figure_filepath,
                     )
                     plt.close(fig)
                     new_trace_figure = True
-                signals.append((trace.time, trace.analysis["signal_smooth"]))
-                energies.append(trace.analysis["energy"].nominal_value)
+                signals.append(
+                    (
+                        trace.time,
+                        trace.get_analysis(experiment.options)["signal_smooth"],
+                    )
+                )
+                energies.append(
+                    trace.get_analysis(experiment.options)["energy"].nominal_value
+                )
 
         if new_trace_figure:
             fig = build_powerscan_overview_figure(
@@ -139,22 +152,31 @@ def save_all_figures(
             figname = get_powerscan_overview_name(folderpath.name)
             save_fig_to_pickle(
                 fig,
-                experiment.root / OPTIONS["figures_save_path"] / f"{figname}.pickle",
+                experiment.root
+                / experiment.options["figures_save_path"]
+                / f"{figname}.pickle",
             )
             save_fig_to_pickle(
                 fig,
-                experiment.root / OPTIONS["figures_save_path"] / "__last_plot.pickle",
+                experiment.root
+                / experiment.options["figures_save_path"]
+                / "__last_plot.pickle",
             )
             plt.close(fig)
     if new_trace_figure:
-        fig = build_linear_fit_figure(list(experiment.powerscans.values()))
+        fig = build_linear_fit_figure(
+            list(experiment.powerscans.values()), options=experiment.options
+        )
         save_fig_to_pickle(
-            fig, experiment.root / OPTIONS["figures_save_path"] / "__linear_fit.pickle"
+            fig,
+            experiment.root
+            / experiment.options["figures_save_path"]
+            / "__linear_fit.pickle",
         )
         plt.close(fig)
 
 
-def plot_signal_and_peaks(ax: Axes, trace: Trace):
+def plot_signal_and_peaks(ax: Axes, trace: Trace, options: Options):
     """Plot the signal and peaks (if given).
 
     Parameters
@@ -169,7 +191,7 @@ def plot_signal_and_peaks(ax: Axes, trace: Trace):
 
     ax.plot(trace.time, trace.signal, c="tab:gray")
 
-    signal_smooth = trace.analysis["signal_smooth"]
+    signal_smooth = trace.get_analysis(options)["signal_smooth"]
     if signal_smooth is not None:
         ax.plot(trace.time, signal_smooth, c="tab:blue")
 
@@ -188,19 +210,19 @@ def plot_signal_and_peaks(ax: Axes, trace: Trace):
 
     ax.set_title(
         "/".join(trace.metadata.PATH.split("/")[-2:])
-        + f"\nrep ({trace.analysis['repeat']}/{trace.metadata.__PA_REPEATS__})"
+        + f"\nrep ({trace.get_analysis(options)['repeat']}/{trace.metadata.__PA_REPEATS__})"
     )
 
     for n in (1, 2):
         x = (
-            trace.analysis["time_peak1"].nominal_value
+            trace.get_analysis(options)["time_peak1"].nominal_value
             if n == 1
-            else trace.analysis["time_peak2"].nominal_value
+            else trace.get_analysis(options)["time_peak2"].nominal_value
         )
         y = (
-            trace.analysis["signal_peak1"].nominal_value
+            trace.get_analysis(options)["signal_peak1"].nominal_value
             if n == 1
-            else trace.analysis["signal_peak2"].nominal_value
+            else trace.get_analysis(options)["signal_peak2"].nominal_value
         )
         if np.isnan(x) or np.isnan(y):
             continue
@@ -215,8 +237,8 @@ def sample_repeat_metadata_from_name(fname: str) -> tuple[str, int, str]:
     return samp, repeat, metadata
 
 
-def order_images(root: Path):
-    figs_path = root / OPTIONS["figures_save_path"]
+def order_images(root: Path, figures_save_path: Path):
+    figs_path = root / figures_save_path
     time_trace_paths: dict[str, dict[str, dict[int, Path]]] = {}
     powerscan_paths: dict[str, Path] = {}
     for fp in figs_path.glob("*.pickle"):
@@ -242,15 +264,15 @@ def order_images(root: Path):
     return [*ordered_paths, figs_path / "__linear_fit.pickle"]
 
 
-def build_pdf(root: Path):
+def build_pdf(root: Path, figures_save_path: Path):
     with PdfPages(root / "summary.pdf") as pdf:
-        for image_path in order_images(root):
+        for image_path in order_images(root, figures_save_path):
             with open(image_path, "rb") as f:
                 fig = pickle.load(f)
                 pdf.savefig(fig, dpi=200)
 
 
-def build_time_trace_figure(trace: Trace) -> Figure:
+def build_time_trace_figure(trace: Trace, options: Options) -> Figure:
     """Plot a figure
 
     Parameters
@@ -281,18 +303,21 @@ def build_time_trace_figure(trace: Trace) -> Figure:
     ax_inset.get_xaxis().set_ticks([])
     ax_inset.get_yaxis().set_ticks([])
 
-    plot_signal_and_peaks(ax_plot, trace)
+    plot_signal_and_peaks(ax_plot, trace, options)
     ax_meta.axis(False)
     ax_peak.axis(False)
 
     cellText = [
-        ("Description", trace.analysis["description"]),
-        ("Wavelength", f"{trace.analysis['wavelength']} nm"),
+        ("Description", trace.get_analysis(options)["description"]),
+        ("Wavelength", f"{trace.get_analysis(options)['wavelength']} nm"),
         (
             "Laser energy",
-            r"$({:.2uL})~\mu J$".format(trace.analysis["energy"]),
+            r"$({:.2uL})~\mu J$".format(trace.get_analysis(options)["energy"]),
         ),
-        ("Exc. Wavelength", f"{trace.analysis.get('exc_wavelength', 'N/A')} nm"),
+        (
+            "Exc. Wavelength",
+            f"{trace.get_analysis(options).get('exc_wavelength', 'N/A')} nm",
+        ),
     ]
 
     table = ax_meta.table(
@@ -301,20 +326,20 @@ def build_time_trace_figure(trace: Trace) -> Figure:
     table.auto_set_font_size(False)
     table.set_fontsize(5)
 
-    ax_peak.set_title(f"Peaks (include={trace.analysis['include']})")
+    ax_peak.set_title(f"Peaks (include={trace.get_analysis(options)['include']})")
     table = ax_peak.table(
         cellText=[
             (
-                f"{trace.analysis['time_peak1'].nominal_value:.3f}",
-                f"{trace.analysis['signal_peak1'].nominal_value:.3f}",
+                f"{trace.get_analysis(options)['time_peak1'].nominal_value:.3f}",
+                f"{trace.get_analysis(options)['signal_peak1'].nominal_value:.3f}",
             ),
             (
-                f"{trace.analysis['time_peak2'].nominal_value:.3f}",
-                f"{trace.analysis['signal_peak2'].nominal_value:.3f}",
+                f"{trace.get_analysis(options)['time_peak2'].nominal_value:.3f}",
+                f"{trace.get_analysis(options)['signal_peak2'].nominal_value:.3f}",
             ),
             (
-                f"{trace.analysis['time_delta'].nominal_value:.3f}",
-                f"{trace.analysis['signal_delta'].nominal_value:.3f}",
+                f"{trace.get_analysis(options)['time_delta'].nominal_value:.3f}",
+                f"{trace.get_analysis(options)['signal_delta'].nominal_value:.3f}",
             ),
         ],
         colLabels=(
@@ -328,8 +353,8 @@ def build_time_trace_figure(trace: Trace) -> Figure:
     table.auto_set_font_size(False)
     table.set_fontsize(5)
 
-    t0 = trace.analysis["time_peak1"]
-    t1 = trace.analysis["time_peak2"]
+    t0 = trace.get_analysis(options)["time_peak1"]
+    t1 = trace.get_analysis(options)["time_peak2"]
     if np.isfinite(t0.nominal_value) and np.isfinite(t1.nominal_value):
         lb = t0.nominal_value - 3 * (t1.nominal_value - t0.nominal_value)
         ub = t0.nominal_value + 6 * (t1.nominal_value - t0.nominal_value)
@@ -360,13 +385,13 @@ def split_unc_tuple(
 
 
 def plot_linear_with_intercept(
-    powerscan: PowerScan, ax_plot: Axes, color: ColorType | None
+    powerscan: PowerScan, ax_plot: Axes, color: ColorType | None, options: Options
 ):
-    x, x_unc = split_unc_tuple(*powerscan.analysis["energies"])
+    x, x_unc = split_unc_tuple(*powerscan.get_analysis(options)["energies"])
     x_fit = np.linspace(0, np.max(x) * 1.1, 10)
     y_fit = (
-        powerscan.analysis["slope"].nominal_value * x_fit
-        + powerscan.analysis["intercept"].nominal_value
+        powerscan.get_analysis(options)["slope"].nominal_value * x_fit
+        + powerscan.get_analysis(options)["intercept"].nominal_value
     )
 
     if color is not None:
@@ -376,19 +401,19 @@ def plot_linear_with_intercept(
 
     color = line.get_color()
 
-    if OPTIONS["plot_uncertainty_slope"]:
+    if options["plot_uncertainty_slope"]:
         xa = np.linspace(0, np.max(x) * 1.1, 100)
 
         # Slope
         ya_var = (
-            xa**2 * powerscan.analysis["result"].cov_beta[0, 0]
-            + powerscan.analysis["result"].cov_beta[1, 1]
-            + 2 * xa * powerscan.analysis["result"].cov_beta[0, 1]
+            xa**2 * powerscan.get_analysis(options)["result"].cov_beta[0, 0]
+            + powerscan.get_analysis(options)["result"].cov_beta[1, 1]
+            + 2 * xa * powerscan.get_analysis(options)["result"].cov_beta[0, 1]
         )
         ya_unc = np.sqrt(ya_var)
         ya = (
-            powerscan.analysis["slope"].nominal_value * xa
-            + powerscan.analysis["intercept"].nominal_value
+            powerscan.get_analysis(options)["slope"].nominal_value * xa
+            + powerscan.get_analysis(options)["intercept"].nominal_value
         )
 
         ax_plot.fill_between(
@@ -400,11 +425,16 @@ def plot_linear_with_intercept(
         )
 
 
-def plot_linear(powerscan: PowerScan, ax_plot: Axes, color: ColorType | None):
-    x, x_unc = split_unc_tuple(*powerscan.analysis["energies"])
-    y, y_unc = split_unc_tuple(*powerscan.analysis["pa_signals"])
+def plot_linear(
+    powerscan: PowerScan,
+    ax_plot: Axes,
+    color: ColorType | None,
+    options: Options,
+):
+    x, x_unc = split_unc_tuple(*powerscan.get_analysis(options)["energies"])
+    y, y_unc = split_unc_tuple(*powerscan.get_analysis(options)["pa_signals"])
     x_fit = np.linspace(0, np.max(x) * 1.1, 10)
-    y_fit = powerscan.analysis["slope0"].nominal_value * x_fit
+    y_fit = powerscan.get_analysis(options)["slope0"].nominal_value * x_fit
     (line,) = ax_plot.plot(x_fit, y_fit, color=color, ls=":")
 
     ax_plot.errorbar(
@@ -416,13 +446,15 @@ def plot_linear(powerscan: PowerScan, ax_plot: Axes, color: ColorType | None):
         marker=".",
         color=line.get_color(),
     )
-    if OPTIONS["plot_uncertainty_slope0"]:
+    if options["plot_uncertainty_slope0"]:
         try:
             xa = np.linspace(0, np.max(x) * 1.1, 100)
 
             # Slope0
-            ya_unc = np.sqrt(xa**2 * powerscan.analysis["result0"].cov_beta[0, 0])
-            ya = powerscan.analysis["slope0"].nominal_value * xa
+            ya_unc = np.sqrt(
+                xa**2 * powerscan.get_analysis(options)["result0"].cov_beta[0, 0]
+            )
+            ya = powerscan.get_analysis(options)["slope0"].nominal_value * xa
 
             ax_plot.fill_between(
                 xa,
@@ -432,10 +464,12 @@ def plot_linear(powerscan: PowerScan, ax_plot: Axes, color: ColorType | None):
                 alpha=0.2,
             )
         except Exception as e:
-            OPTIONS["on_error"](f"Couldn't plot uncertainty of fit with origin 0: {e}")
+            options["on_error"](f"Couldn't plot uncertainty of fit with origin 0: {e}")
 
 
-def build_linear_fit_figure(powerscans: Iterable[PowerScan]) -> Figure:
+def build_linear_fit_figure(
+    powerscans: Iterable[PowerScan], options: Options
+) -> Figure:
     fig, (ax_plot, ax_meta) = plt.subplots(
         2, 1, gridspec_kw=dict(height_ratios=(0.7, 0.3))
     )
@@ -451,30 +485,30 @@ def build_linear_fit_figure(powerscans: Iterable[PowerScan]) -> Figure:
     rowColours = []
 
     for powerscan in powerscans:
-        powerscan.recompute_analysis()
+        powerscan.recompute_analysis(options)
 
         label = powerscan.path.name
         sample_name = label.split("_")[0]
 
-        slope = powerscan.analysis["slope"]
-        slope0 = powerscan.analysis["slope0"]
-        intercept = powerscan.analysis["intercept"]
+        slope = powerscan.get_analysis(options)["slope"]
+        slope0 = powerscan.get_analysis(options)["slope0"]
+        intercept = powerscan.get_analysis(options)["intercept"]
 
         color = None
         if sample_name in ("ref0", "ref1", "sam"):
             try:
                 color = get_line_colors()[sample_name][0]
             except IndexError:
-                OPTIONS["on_error"]("Ran out of line colors, changing to default")
+                options["on_error"]("Ran out of line colors, changing to default")
             except Exception as ex:
-                OPTIONS["on_error"](
+                options["on_error"](
                     f"An exception ocurred while trying to set line colors: {ex}"
                 )
 
-        if OPTIONS["plot_with_intercept"]:
-            plot_linear_with_intercept(powerscan, ax_plot, color)
+        if options["plot_with_intercept"]:
+            plot_linear_with_intercept(powerscan, ax_plot, color, options)
 
-        plot_linear(powerscan, ax_plot, color)
+        plot_linear(powerscan, ax_plot, color, options=options)
 
         cellText.append(
             (label, f"${slope:.2uL}$", f"${intercept:.2uL}$", f"${slope0:.2uL}$"),

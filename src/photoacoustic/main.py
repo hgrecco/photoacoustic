@@ -5,6 +5,7 @@ import time
 
 import matplotlib
 
+from photoacoustic.constants import Options, default_options
 from photoacoustic.models import Experiment, MeasurementFile, PowerScan
 import pathlib
 from watchdog.events import (
@@ -51,10 +52,12 @@ class ExperimentEventHandler(FileSystemEventHandler):
                 print(self.experiment)
             case Action.READ_MEASUREMENT_FILE:
                 if p.parent not in self.experiment.powerscans.keys():
-                    self.experiment.powerscans[p.parent] = PowerScan.from_path(p.parent)
+                    self.experiment.powerscans[p.parent] = PowerScan.from_path(
+                        p.parent, self.experiment.options
+                    )
                 print(f"Adding file {relative_path.name} to {p.parent}")
                 self.experiment.powerscans[p.parent].measurement_files[p] = (
-                    MeasurementFile.from_path(p)
+                    MeasurementFile.from_path(p, self.experiment.options)
                 )
                 save_all_figures(self.experiment)
                 print(self.experiment)
@@ -101,12 +104,14 @@ class ExperimentEventHandler(FileSystemEventHandler):
         return action
 
 
-def main(root: pathlib.Path | str):
+def main(root: pathlib.Path | str, options: Options | None = None):
+    if not options:
+        options = default_options()
 
     matplotlib.use("Agg")
 
     root = pathlib.Path(root)
-    exp = Experiment.from_path(root)
+    exp = Experiment.from_path(root, options)
 
     print(exp)
 
@@ -131,10 +136,12 @@ def main(root: pathlib.Path | str):
         print("building excel summary")
         write_excel(root, exp)
         print("building pdf summary")
-        build_pdf(root)
+        build_pdf(root, exp.options["figures_save_path"])
     finally:
         observer.stop()
         observer.join()
+
+    print("analysis done!")
 
 
 if __name__ == "__main__":

@@ -57,6 +57,7 @@ def default_footnote(fig: Figure | None):
     if fig is None:
         _footnote_timestamp = datetime.datetime.now().isoformat(timespec="seconds")
     else:
+        _footnote_timestamp = datetime.datetime.now().isoformat(timespec="seconds")
         footnote(
             fig,
             left_footer=f"Analysis datetime: {_footnote_timestamp}",

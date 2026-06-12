@@ -20,7 +20,7 @@ class Project:
     path: Path
 
 
-PROJECTS = (Project("analysis-rt", ROOT),)
+PROJECTS = (Project("spectracoustic-analysis", ROOT),)
 
 
 def load_project_metadata(project: Project) -> tuple[str, str]:

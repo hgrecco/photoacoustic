@@ -1,8 +1,8 @@
-import time
-import shutil
 import os
-from pathlib import Path
 import random
+import shutil
+import time
+from pathlib import Path
 
 
 def initialize_watch_folder(

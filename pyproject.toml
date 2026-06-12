@@ -24,7 +24,7 @@ photoacoustic = "spectracoustic_analysis.main:main"
 requires = ["uv_build>=0.9.17,<0.10.0"]
 build-backend = "uv_build"
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64", "win-64", "osx-arm64"]
 
@@ -38,6 +38,13 @@ uncertainties = ">=3.2.2,<4"
 openpyxl = ">=3.1.5,<4"
 watchdog = "*"
 
+[tool.pixi.feature.lint.tasks]
+pre-commit-install = "pre-commit install"
+lint = "pre-commit run"
+
+[tool.pixi.environments]
+lint = { features = ["lint"], no-default-feature = true }
+
 [tool.uv.build-backend]
 module-name = "spectracoustic_analysis"
 module-root = "src"
@@ -45,3 +52,15 @@ module-root = "src"
 [tool.pixi.tasks]
 pack = 'python tools/build_pack.py'
 sim = "python tools/simulate_data_acq.py"
+
+[tool.pixi.feature.lint.dependencies]
+python = "==3.12"
+pre-commit = "*"
+pre-commit-hooks = "*"
+taplo = "*"
+ruff = "*"
+mdformat = "*"
+mdformat-ruff = "*"
+
+[tool.ruff.lint]
+extend-select = ["I"]

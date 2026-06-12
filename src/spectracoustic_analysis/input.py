@@ -1,19 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any, Generator, Literal, Protocol
+
 import numpy as np
 import pandas as pd
-
-from pathlib import Path
-from typing import Any, Callable, Generator, Literal, Protocol
-
-from uncertainties.core import ufloat, ufloat_fromstr
-
-from photoacoustic.constants import Array, OnErrorFunc
 import photoacoustic.constants as constants
+from photoacoustic.constants import Array, OnErrorFunc
+
 # from photoacoustic.constants import OPTIONS
-
 from photoacoustic.models import FileDataFrame, FileMetadata, TraceDataFrame
-
+from uncertainties.core import ufloat, ufloat_fromstr
 
 # Repeats is not included as metadata in the file.
 ATTR_REPEATS = "__PA_REPEATS__"
@@ -38,9 +35,9 @@ def parse_metadata_content(
     """Parse metadata content."""
 
     if repeats is None:
-        fun = lambda conv, x: conv(x)  # type: ignore
+        fun = lambda conv, x: conv(x)  # noqa
     else:
-        fun = lambda conv, x: tuple(conv(el) for el in x.split(","))  # type: ignore
+        fun = lambda conv, x: tuple(conv(el) for el in x.split(","))  # noqa
 
     for k, v in metadata.items():
         k.replace(" ", "_")
@@ -55,7 +52,8 @@ def parse_metadata_content(
 
 
 class ReadLiner(Protocol):
-    def readline(self) -> str: ...
+    def readline(self) -> str:
+        ...
 
 
 def read_metadata(fi: ReadLiner) -> dict[str, str]:

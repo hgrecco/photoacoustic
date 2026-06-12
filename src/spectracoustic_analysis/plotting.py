@@ -1,26 +1,25 @@
 import datetime
-from pathlib import Path
 import pickle
+from pathlib import Path
 from typing import Iterable
 
+import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib import colors, ticker
 from matplotlib.axes import Axes
+from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpec
 from matplotlib.typing import ColorType
-from matplotlib.backends.backend_pdf import PdfPages
-import numpy as np
-from uncertainties.core import Variable
-
-from photoacoustic.models import Experiment, PowerScan, Trace
-import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from photoacoustic.constants import (
     Array,
     Options,
-    _footnote_timestamp,
     __version__,
 )
+from photoacoustic.models import Experiment, PowerScan, Trace
+from uncertainties.core import Variable
+
 # from photoacoustic.constants import OPTIONS
 
 
@@ -104,7 +103,6 @@ def save_all_figures(
     experiment: Experiment,
     overwrite: bool = False,
 ):
-
     new_trace_figure = False
     for folderpath, powerscan in experiment.powerscans.items():
         # TODO: program a way of getting a list of times and signasl from powerscan

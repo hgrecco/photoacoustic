@@ -1,22 +1,20 @@
-from enum import Enum, auto
+import pathlib
 import sys
 import threading
 import time
+from enum import Enum, auto
 
 import matplotlib
-
 from photoacoustic.constants import Options, default_options
 from photoacoustic.models import Experiment, MeasurementFile, PowerScan
-import pathlib
+from photoacoustic.plotting import build_pdf, save_all_figures
+from photoacoustic.xlsx import write_excel
 from watchdog.events import (
     DirCreatedEvent,
     FileCreatedEvent,
     FileSystemEventHandler,
 )
 from watchdog.observers.polling import PollingObserver
-
-from photoacoustic.plotting import build_pdf, save_all_figures
-from photoacoustic.xlsx import write_excel
 
 
 class Action(Enum):
@@ -56,9 +54,9 @@ class ExperimentEventHandler(FileSystemEventHandler):
                         p.parent, self.experiment.options
                     )
                 print(f"Adding file {relative_path.name} to {p.parent}")
-                self.experiment.powerscans[p.parent].measurement_files[p] = (
-                    MeasurementFile.from_path(p, self.experiment.options)
-                )
+                self.experiment.powerscans[p.parent].measurement_files[
+                    p
+                ] = MeasurementFile.from_path(p, self.experiment.options)
                 save_all_figures(self.experiment)
                 print(self.experiment)
             case Action.STOP_ANALYSIS:

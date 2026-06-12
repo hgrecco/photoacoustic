@@ -5,10 +5,10 @@ from typing import Any, Literal, TypeAlias, TypedDict
 
 import numpy as np
 import pandas as pd
+from photoacoustic.constants import Array, Options, PaSignal
 from scipy import odr
 from uncertainties.core import UFloat, Variable
 
-from photoacoustic.constants import Array, Options, PaSignal
 # from photoacoustic.constants import OPTIONS
 
 FileDataFrame: TypeAlias = pd.DataFrame
@@ -151,7 +151,7 @@ class MeasurementFile:
 
     @classmethod
     def from_path(cls, path: Path, options: Options):
-        from photoacoustic.input import yield_individual_repeats, read
+        from photoacoustic.input import read, yield_individual_repeats
 
         filedf, metadata = read(path)
         traces = []
@@ -342,17 +342,20 @@ class Experiment:
                 return pwsc
 
     def __str__(self):
-        return f"""
+        return (
+            f"""
 root: {self.root}
 absorbance: {self.absorbance}
 done: {self.done}
 folders:\t
-""" + "\n".join(
-            [
-                f"\t{path.relative_to(self.root)}:\n\t\t"
-                + "\n\t\t".join(
-                    f"{filepath.name}" for filepath in powerscan.measurement_files
-                )
-                for path, powerscan in self.powerscans.items()
-            ]
+"""
+            + "\n".join(
+                [
+                    f"\t{path.relative_to(self.root)}:\n\t\t"
+                    + "\n\t\t".join(
+                        f"{filepath.name}" for filepath in powerscan.measurement_files
+                    )
+                    for path, powerscan in self.powerscans.items()
+                ]
+            )
         )

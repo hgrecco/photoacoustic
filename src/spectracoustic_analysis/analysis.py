@@ -3,10 +3,7 @@ from typing import Iterable, TypedDict
 
 import numpy as np
 import pandas as pd
-from scipy import odr
-from uncertainties.core import Variable, ufloat
-from scipy.signal import find_peaks, savgol_filter
-
+from photoacoustic.constants import Array, Options
 from photoacoustic.models import (
     Experiment,
     PowerScan,
@@ -14,8 +11,10 @@ from photoacoustic.models import (
     TraceAnalysis,
     TraceMetadata,
 )
+from scipy import odr
+from scipy.signal import find_peaks, savgol_filter
+from uncertainties.core import Variable, ufloat
 
-from photoacoustic.constants import Array, Options
 # from photoacoustic.constants import OPTIONS
 
 UFLOAT0 = ufloat(0, 0)
@@ -158,9 +157,9 @@ def analyze_powerscan(powerscan: PowerScan, options: Options) -> PowerscanAnalys
         if len(_signals) == 0:
             continue
         elif len(_signals) > 1:
-            ndx = _argmedian_at_t0(_signals)
+            _ndx = _argmedian_at_t0(_signals)
         else:
-            ndx = 0
+            _ndx = 0
 
         energies.append(ufloat_nanmean(*_energies))
         pa_signals.append(ufloat_nanmean(*_pa_signals))

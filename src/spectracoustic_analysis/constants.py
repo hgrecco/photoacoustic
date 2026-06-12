@@ -1,9 +1,8 @@
 from pathlib import Path
 from typing import Callable, Literal, TypedDict
 
-import numpy.typing as npt
 import numpy as np
-
+import numpy.typing as npt
 
 OPTIONS_TO_PRINT = [
     "plot_time_trace_rep",
@@ -30,7 +29,7 @@ PaSignal = Literal["signal_delta", "signal_peak1", "signal_peak2", "sonic_energy
 
 OnErrorFunc = Callable[[str], None]
 
-on_error_default: OnErrorFunc = lambda e: None
+on_error_default: OnErrorFunc = lambda e: None  # noqa
 
 
 class LinearPlotOptions(TypedDict):

@@ -5,11 +5,10 @@ from typing import Any, Literal, TypeAlias, TypedDict
 
 import numpy as np
 import pandas as pd
-from photoacoustic.constants import Array, Options, PaSignal
 from scipy import odr
 from uncertainties.core import UFloat, Variable
 
-# from photoacoustic.constants import OPTIONS
+from .constants import Array, Options, PaSignal
 
 FileDataFrame: TypeAlias = pd.DataFrame
 TraceDataFrame: TypeAlias = pd.DataFrame

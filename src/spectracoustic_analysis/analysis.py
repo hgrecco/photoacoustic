@@ -3,19 +3,20 @@ from typing import Iterable, TypedDict
 
 import numpy as np
 import pandas as pd
-from photoacoustic.constants import Array, Options
-from photoacoustic.models import (
+from scipy import odr
+from scipy.signal import find_peaks, savgol_filter
+from uncertainties.core import Variable, ufloat
+
+from .constants import Array, Options
+from .models import (
     Experiment,
     PowerScan,
     PowerscanAnalysis,
     TraceAnalysis,
     TraceMetadata,
 )
-from scipy import odr
-from scipy.signal import find_peaks, savgol_filter
-from uncertainties.core import Variable, ufloat
 
-# from photoacoustic.constants import OPTIONS
+# from .constants import OPTIONS
 
 UFLOAT0 = ufloat(0, 0)
 UFLOAT_NAN = ufloat(np.nan, np.nan)

@@ -2,11 +2,12 @@ from pathlib import Path
 
 import pandas as pd
 from openpyxl import load_workbook
-from photoacoustic.analysis import compute_alpha
 
-# from photoacoustic.constants import OPTIONS
-from photoacoustic.constants import Options
-from photoacoustic.models import Experiment, MeasurementFile, PowerScan
+from .analysis import compute_alpha
+
+# from .constants import OPTIONS
+from .constants import Options
+from .models import Experiment, MeasurementFile, PowerScan
 
 
 def reorganize_sheets(path: Path):

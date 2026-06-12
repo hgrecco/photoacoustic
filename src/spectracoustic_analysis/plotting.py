@@ -12,13 +12,14 @@ from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpec
 from matplotlib.typing import ColorType
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from photoacoustic.constants import (
+from uncertainties.core import Variable
+
+from .constants import (
     Array,
     Options,
     __version__,
 )
-from photoacoustic.models import Experiment, PowerScan, Trace
-from uncertainties.core import Variable
+from .models import Experiment, PowerScan, Trace
 
 # from photoacoustic.constants import OPTIONS
 

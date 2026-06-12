@@ -5,16 +5,17 @@ import time
 from enum import Enum, auto
 
 import matplotlib
-from photoacoustic.constants import Options, default_options
-from photoacoustic.models import Experiment, MeasurementFile, PowerScan
-from photoacoustic.plotting import build_pdf, save_all_figures
-from photoacoustic.xlsx import write_excel
 from watchdog.events import (
     DirCreatedEvent,
     FileCreatedEvent,
     FileSystemEventHandler,
 )
 from watchdog.observers.polling import PollingObserver
+
+from .constants import Options, default_options
+from .models import Experiment, MeasurementFile, PowerScan
+from .plotting import build_pdf, save_all_figures
+from .xlsx import write_excel
 
 
 class Action(Enum):

@@ -5,12 +5,13 @@ from typing import Any, Generator, Literal, Protocol
 
 import numpy as np
 import pandas as pd
-import photoacoustic.constants as constants
-from photoacoustic.constants import Array, OnErrorFunc
-
-# from photoacoustic.constants import OPTIONS
-from photoacoustic.models import FileDataFrame, FileMetadata, TraceDataFrame
 from uncertainties.core import ufloat, ufloat_fromstr
+
+from . import constants
+from .constants import Array, OnErrorFunc
+
+# from .constants import OPTIONS
+from .models import FileDataFrame, FileMetadata, TraceDataFrame
 
 # Repeats is not included as metadata in the file.
 ATTR_REPEATS = "__PA_REPEATS__"

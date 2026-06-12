@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "scipy-stubs",
     "numpy>=2.1.2,<3",
     "scipy>=1.14.1,<2",
     "pandas>=2.2.3,<3",
@@ -37,6 +38,7 @@ matplotlib = ">=3.9.2,<4"
 uncertainties = ">=3.2.2,<4"
 openpyxl = ">=3.1.5,<4"
 watchdog = "*"
+scipy-stubs="*"
 
 [tool.pixi.feature.lint.tasks]
 pre-commit-install = "pre-commit install"

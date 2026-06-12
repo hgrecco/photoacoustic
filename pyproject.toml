@@ -1,5 +1,5 @@
 [project]
-name = "photoacoustic"
+name = "analysis-rt"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -41,3 +41,9 @@ watchdog = "*"
 [tool.uv.build-backend]
 module-name = "photoacoustic"
 module-root = "src"
+
+[tool.pixi.tasks]
+pack = 'python tools/build_pack.py'
+upload = "curl -u \"xi95ExZ8N6KWxY3:0000\" -T dist/analysis-rt-0.1.0-win-64.ps1 https://uni-muenster.sciebo.de/public.php/webdav/analysis-rt-0.1.0-win-64.ps1"
+post = { depends-on=["pack", "upload"]}
+sim = "python simulate_data_acq.py"

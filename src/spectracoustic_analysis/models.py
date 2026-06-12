@@ -93,7 +93,7 @@ class Trace:
 
     def get_analysis(self, options: Options) -> TraceAnalysis:
         if not self._analysis:
-            from photoacoustic.analysis import analyze_time_trace
+            from .analysis import analyze_time_trace
 
             self._analysis = analyze_time_trace(
                 self.time, self.signal, options, alldf_attrs=self.metadata
@@ -101,7 +101,7 @@ class Trace:
         return self._analysis
 
     def recompute_analysis(self, options: Options):
-        from photoacoustic.analysis import analyze_time_trace
+        from .analysis import analyze_time_trace
 
         self._analysis = analyze_time_trace(
             self.time, self.signal, options, alldf_attrs=self.metadata
@@ -150,7 +150,7 @@ class MeasurementFile:
 
     @classmethod
     def from_path(cls, path: Path, options: Options):
-        from photoacoustic.input import read, yield_individual_repeats
+        from .input import read, yield_individual_repeats
 
         filedf, metadata = read(path)
         traces = []
@@ -161,7 +161,7 @@ class MeasurementFile:
         return cls(traces, metadata)
 
     def get_energy(self, options: Options) -> Variable:
-        from photoacoustic.analysis import ufloat_nanmean
+        from .analysis import ufloat_nanmean
 
         return ufloat_nanmean(
             *[
@@ -172,7 +172,7 @@ class MeasurementFile:
         )
 
     def get_pa_signal(self, pa_signal: PaSignal, options: Options) -> Variable:
-        from photoacoustic.analysis import ufloat_nanmean
+        from .analysis import ufloat_nanmean
 
         return ufloat_nanmean(
             *[
@@ -250,13 +250,13 @@ class PowerScan:
 
     def get_analysis(self, options: Options) -> PowerscanAnalysis:
         if self._analysis is None:
-            from photoacoustic.analysis import analyze_powerscan
+            from .analysis import analyze_powerscan
 
             self._analysis = analyze_powerscan(self, options)
         return self._analysis
 
     def recompute_analysis(self, options: Options):
-        from photoacoustic.analysis import analyze_powerscan
+        from .analysis import analyze_powerscan
 
         self._analysis = analyze_powerscan(self, options)
 
@@ -297,7 +297,7 @@ class Experiment:
 
     @classmethod
     def from_path(cls, p: Path, options: Options):
-        from photoacoustic.input import read_absorbance
+        from .input import read_absorbance
 
         root = p
         powerscans = {}
@@ -321,7 +321,7 @@ class Experiment:
 
     @property
     def absorbance(self) -> dict[Literal["sam", "ref"], float] | None:
-        from photoacoustic.input import read_absorbance
+        from .input import read_absorbance
 
         if self._absorbance is None:
             self._absorbance = read_absorbance(
@@ -330,7 +330,7 @@ class Experiment:
         return self._absorbance
 
     def set_absorbance(self, p: Path):
-        from photoacoustic.input import read_absorbance
+        from .input import read_absorbance
 
         self._absorbance = read_absorbance(p, on_error=self.options["on_error"])
 
@@ -341,20 +341,17 @@ class Experiment:
                 return pwsc
 
     def __str__(self):
-        return (
-            f"""
+        return f"""
 root: {self.root}
 absorbance: {self.absorbance}
 done: {self.done}
 folders:\t
-"""
-            + "\n".join(
-                [
-                    f"\t{path.relative_to(self.root)}:\n\t\t"
-                    + "\n\t\t".join(
-                        f"{filepath.name}" for filepath in powerscan.measurement_files
-                    )
-                    for path, powerscan in self.powerscans.items()
-                ]
-            )
+""" + "\n".join(
+            [
+                f"\t{path.relative_to(self.root)}:\n\t\t"
+                + "\n\t\t".join(
+                    f"{filepath.name}" for filepath in powerscan.measurement_files
+                )
+                for path, powerscan in self.powerscans.items()
+            ]
         )

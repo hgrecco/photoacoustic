@@ -47,15 +47,16 @@ def sort_paths(source_path: Path, paths: list[Path]) -> list[Path]:
 
 def main():
     source_path = Path(
-        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git/photoacoustic/test/data/70"
+        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git.bak/photoacoustic/test/data/70"
     )
     dest_path = Path(
-        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git/photoacoustic/test/watch_folder"
+        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git.bak/photoacoustic/test/watch_folder"
     )
     paths = [p for p in source_path.rglob("*") if not p.is_dir()]
     random.shuffle(paths)
     done_path = source_path / "done.txt"
-    paths.remove(done_path)
+    if done_path.exists():
+        paths.remove(done_path)
     paths = sort_paths(source_path, paths)
 
     paths.pop(-1)

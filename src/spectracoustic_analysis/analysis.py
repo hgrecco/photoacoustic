@@ -131,7 +131,7 @@ def analyze_powerscan(powerscan: PowerScan, options: Options) -> PowerscanAnalys
 
     measurement_files = powerscan.measurement_files
     folder = powerscan.path
-    parts = folder.stem.split("_", 2)
+    parts = folder.name.split("_", 2)
     if len(parts) == 3:
         sam_ref, wl, desc = parts  # TODO: maybe change sam_ref parameter
         try:

@@ -47,8 +47,9 @@ def sort_paths(source_path: Path, paths: list[Path]) -> list[Path]:
 
 def main():
     source_path = Path(
-        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git.bak/photoacoustic/test/data/70"
+        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git.bak/photoacoustic.bak/test/data/ru17-p4r"
     )
+
     dest_path = Path(
         "/home/tomi/Documents/academicos/doc/projects/photoacoustic/git.bak/photoacoustic/test/watch_folder"
     )

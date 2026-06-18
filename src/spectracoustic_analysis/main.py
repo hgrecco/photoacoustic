@@ -22,8 +22,9 @@ from .xlsx import write_excel
 class Action(Enum):
     READ_ABSORBANCE = auto()
     READ_MEASUREMENT_FILE = auto()
-    STOP_ANALYSIS = auto()
+    FINISH = auto()
     SKIP = auto()
+    CANCEL = auto()
 
 
 class ExperimentEventHandler(FileSystemEventHandler):
@@ -59,14 +60,17 @@ def determine_action(experiment: Experiment, path: pathlib.Path) -> Action:
     depth = len(relative_path.parts)
 
     if depth == 1:
-        if path.name == "abs.txt":
-            action = Action.READ_ABSORBANCE
-        elif path.name == "done.txt":
-            action = Action.STOP_ANALYSIS
-        else:
-            print(
-                f"{path}: skipping. It does not comply with the experiment file structure format."
-            )
+        match path.name:
+            case "abs.txt":
+                action = Action.READ_ABSORBANCE
+            case "done.txt":
+                action = Action.FINISH
+            case "cancel.txt":
+                action = Action.CANCEL
+            case _:
+                print(
+                    f"{path}: skipping. It does not comply with the experiment file structure format."
+                )
     elif depth == 2:
         action = Action.READ_MEASUREMENT_FILE
     else:
@@ -76,13 +80,14 @@ def determine_action(experiment: Experiment, path: pathlib.Path) -> Action:
     return action
 
 
-def process_path(experiment: Experiment, q: queue.Queue, stop_event: threading.Event):
+def process_path(experiment: Experiment, q: queue.Queue) -> Action | None:
     if q.empty():
         return
     p = q.get()
     relative_path = p.relative_to(experiment.root)
     print(f"creation event for: {p.name}")
-    match determine_action(experiment, p):
+    action = determine_action(experiment, p)
+    match action:
         case Action.READ_ABSORBANCE:
             print("ABSORBANCE")
             experiment.set_absorbance(p)
@@ -100,13 +105,14 @@ def process_path(experiment: Experiment, q: queue.Queue, stop_event: threading.E
             )
             save_all_figures(experiment)
             print(experiment)
-        case Action.STOP_ANALYSIS:
-            print("STOP ANALYSIS")
+        case Action.FINISH:
             experiment.done = True
-            stop_event.set()
+        case Action.CANCEL:
+            experiment.done = False
         case Action.SKIP:
-            print("SKIP")
             pass
+    print(f"{action=}")
+    return action
 
 
 def main(root: pathlib.Path | str, options: Options | None = None):
@@ -121,7 +127,6 @@ def main(root: pathlib.Path | str, options: Options | None = None):
     print(exp)
 
     q = queue.Queue()
-    stop_event = threading.Event()
     event_handler = ExperimentEventHandler(exp, q)
     # observer = Observer()
     observer = PollingObserver(timeout=0.01)
@@ -134,21 +139,38 @@ def main(root: pathlib.Path | str, options: Options | None = None):
     observer.start()
 
     try:
-        while not stop_event.is_set():
-            process_path(experiment=exp, q=q, stop_event=stop_event)
-            time.sleep(0.1)
-        observer.stop()
-        observer.join()
-        print("finishing up the analysis")
-        print("building excel summary")
-        write_excel(root, exp)
-        print("building pdf summary")
-        build_pdf(root, exp.options["figures_save_path"])
+        action: Action | None = None
+        while action not in (Action.CANCEL, Action.FINISH):
+            action = process_path(experiment=exp, q=q)
+            time.sleep(0.01)
+
+        if exp.done:
+            observer.stop()
+            observer.join()
+            print("finishing up the analysis")
+            print("building excel summary")
+            write_excel(root, exp)
+            print("building pdf summary")
+            build_pdf(root, exp.options["figures_save_path"])
+
+        try:
+            for fp in (exp.root / "_figures").iterdir():
+                fp.unlink(missing_ok=True)
+            (exp.root / "_figures").rmdir()
+            (exp.root / "cancel.txt").unlink(missing_ok=True)
+            (exp.root / "done.txt").unlink(missing_ok=True)
+
+        except Exception as exc:
+            print(f"Couldn't remove footprints with exception {exc}")
+
     finally:
         observer.stop()
         observer.join()
 
-    print("analysis done!")
+    if not exp.done:
+        print("analysis canceled!")
+    else:
+        print("analysis done!")
 
 
 if __name__ == "__main__":

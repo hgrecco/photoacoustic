@@ -144,6 +144,7 @@ def analyze_powerscan(powerscan: PowerScan, options: Options) -> PowerscanAnalys
         sam_ref, wl, desc = "N/A", np.nan, folder.stem
 
     energies: list[Variable] = []
+
     pa_signals: list[Variable] = []
 
     for filepath, measurement_file in measurement_files.items():
@@ -308,16 +309,20 @@ def find_first_two_peaks(
 
     best = best[np.argmax(signal_best)]
 
-    sel[best] = True
-    sel[best + 1] = True
+    try:
+        sel[best] = True
+        sel[best + 1] = True
 
-    return [
-        (
-            ufloat(out.iloc[ndx]["time"], out.iloc[ndx]["time_unc"]),
-            ufloat(out.iloc[ndx]["signal"], out.iloc[ndx]["signal_unc"]),
-        )
-        for ndx in (best, best + 1)
-    ]
+        return [
+            (
+                ufloat(out.iloc[ndx]["time"], out.iloc[ndx]["time_unc"]),
+                ufloat(out.iloc[ndx]["signal"], out.iloc[ndx]["signal_unc"]),
+            )
+            for ndx in (best, best + 1)
+        ]
+    except Exception as e:
+        options["on_error"](f"error in finding peaks: {e}, returning UFLOAT0")
+        return [(UFLOAT0, UFLOAT0) for i in range(2)]
 
 
 def analyze_time_trace(

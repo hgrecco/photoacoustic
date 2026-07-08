@@ -216,7 +216,7 @@ def generate_report(root: Path, ref: Path, sam: Path, plot_linears: bool):
 
     plt.plot(
         df_spectra.wavelength,
-        df_spectra["alpha"] / df_spectra["alpha"].max(),
+        df_spectra["alpha"],
         label="alpha",
         color="black",
     )
@@ -233,10 +233,10 @@ def get_absorbance_path(
         case "sam":
             if argv.sam is None:
                 return argv.root.resolve() / "sam_abs.txt"
-            return argv.ref.resolve()
+            return argv.sam.resolve()
         case "ref":
             if argv.ref is None:
-                return argv.root.resolve() / "sam_abs.txt"
+                return argv.root.resolve() / "ref_abs.txt"
             return argv.ref.resolve()
         case _:
             raise ValueError(f"sam_ref should be sam or ref, not {sam_ref}")
@@ -288,7 +288,7 @@ if __name__ == "__main__":
 
     root = args.experiment_root.resolve()
     sam_abs = get_absorbance_path("sam", args)
-    ref_abs = get_absorbance_path("sam", args)
+    ref_abs = get_absorbance_path("ref", args)
     plot_linears = args.plot_linears
 
     generate_report(

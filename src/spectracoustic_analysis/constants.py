@@ -55,6 +55,8 @@ class Options(LinearPlotOptions):
     alpha_ref: float
     peak_threshold_factor: float
     figures_save_path: Path
+    average_measurements: bool
+    make_single_trace_figures: bool
 
 
 def default_options() -> Options:
@@ -73,6 +75,8 @@ def default_options() -> Options:
         "alpha_ref": 1.0,
         "peak_threshold_factor": 2,
         "figures_save_path": Path("_figures"),
+        "average_measurements": False,
+        "make_single_trace_figures": False,
     }
 
 

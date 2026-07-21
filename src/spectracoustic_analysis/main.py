@@ -33,7 +33,6 @@ class ExperimentEventHandler(FileSystemEventHandler):
 
         self.experiment = experiment
         self.queue = queue
-        save_all_figures(self.experiment)
 
     def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
         time.sleep(0.01)
@@ -123,6 +122,7 @@ def main(root: pathlib.Path | str, options: Options | None = None):
 
     root = pathlib.Path(root)
     exp = Experiment.from_path(root, options)
+    save_all_figures(exp)
 
     print(exp)
 

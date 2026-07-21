@@ -163,8 +163,12 @@ def analyze_powerscan(powerscan: PowerScan, options: Options) -> PowerscanAnalys
         else:
             _ndx = 0
 
-        energies.append(ufloat_nanmean(*_energies))
-        pa_signals.append(ufloat_nanmean(*_pa_signals))
+        if options["average_measurements"]:
+            energies.append(ufloat_nanmean(*_energies))
+            pa_signals.append(ufloat_nanmean(*_pa_signals))
+        else:
+            energies.extend(_energies)
+            pa_signals.extend(_pa_signals)
 
     try:
         x, x_unc = split_unc_tuple(
@@ -182,6 +186,7 @@ def analyze_powerscan(powerscan: PowerScan, options: Options) -> PowerscanAnalys
             (slope0, _intercept0), result0 = fit_linear(
                 x[valid], y[valid], x_unc[valid], y_unc[valid], intercept0=True
             )
+            print(f"{slope=}, {intercept=}, {slope0=}")
         else:
             options["on_error"](
                 f"Could not fit for {folder.stem}: not enough valid points"

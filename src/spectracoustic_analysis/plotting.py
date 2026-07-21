@@ -105,7 +105,7 @@ def save_all_figures(
     experiment: Experiment,
     overwrite: bool = False,
 ):
-    new_trace_figure = False
+    new_trace = False
     for folderpath, powerscan in experiment.powerscans.items():
         # TODO: program a way of getting a list of times and signasl from powerscan
         signals: list[tuple[Array, Array]] = []
@@ -124,7 +124,9 @@ def save_all_figures(
                 )
                 if not figure_filepath.parent.exists():
                     figure_filepath.parent.mkdir()
-                if not figure_filepath.exists() or overwrite:
+                if experiment.options["make_single_trace_figures"] and (
+                    not figure_filepath.exists() or overwrite
+                ):
                     experiment.options["on_progress"](
                         f"building time trace figure {filename} repeat {repeat}"
                     )
@@ -134,7 +136,7 @@ def save_all_figures(
                         figure_filepath,
                     )
                     plt.close(fig)
-                    new_trace_figure = True
+                new_trace = True
                 signals.append(
                     (
                         trace.time,
@@ -145,7 +147,7 @@ def save_all_figures(
                     trace.get_analysis(experiment.options)["energy"].nominal_value
                 )
 
-        if new_trace_figure:
+        if new_trace:
             fig = build_powerscan_overview_figure(
                 signals=signals, energy=np.asarray(energies)
             )
@@ -163,7 +165,7 @@ def save_all_figures(
                 / "__last_plot.pickle",
             )
             plt.close(fig)
-    if new_trace_figure:
+    if new_trace:
         fig = build_linear_fit_figure(
             list(experiment.powerscans.values()), options=experiment.options
         )
@@ -253,10 +255,11 @@ def order_images(root: Path, figures_save_path: Path):
             sample = fp.stem.split("__")[2]
             powerscan_paths[sample] = fp
 
-    assert sorted(list(time_trace_paths.keys())) == sorted(list(powerscan_paths.keys()))
-
     ordered_paths = []
-    for sample, metadata_dicts in time_trace_paths.items():
+    for sample in powerscan_paths:
+        metadata_dicts = (
+            time_trace_paths[sample] if sample in time_trace_paths.keys() else {}
+        )
         for metadata, repeats_dict in metadata_dicts.items():
             for i in range(len(repeats_dict.keys())):
                 ordered_paths.append(repeats_dict[i])

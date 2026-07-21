@@ -75,7 +75,7 @@ def default_options() -> Options:
         "alpha_ref": 1.0,
         "peak_threshold_factor": 2,
         "figures_save_path": Path("_figures"),
-        "average_measurements": False,
+        "average_measurements": True,
         "make_single_trace_figures": False,
     }
 

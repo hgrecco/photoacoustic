@@ -1,11 +1,20 @@
-
 import datetime
 import os
 import pathlib
 import platform
 import subprocess
 import tomllib
-from typing import Any, Iterable, Literal, Protocol, TypedDict, Generator, overload, get_type_hints, Callable
+from typing import (
+    Any,
+    Iterable,
+    Literal,
+    Protocol,
+    TypedDict,
+    Generator,
+    overload,
+    get_type_hints,
+    Callable,
+)
 import warnings
 
 import matplotlib as mpl
@@ -31,9 +40,9 @@ from openpyxl import load_workbook
 
 __version__ = "2025.02.12"
 
+
 def versions() -> list[tuple[str, str]]:
-    """Return list of used packages and their versions.
-    """
+    """Return list of used packages and their versions."""
     return [
         ("NumPy", np.version.version),
         ("SciPy", sp.__version__),
@@ -55,9 +64,9 @@ ATTR_TIME_UNITS = "__PA_TIME_UNITS__"
 ATTR_SIGNAL_UNITS = "__PA_SIGNAL_UNITS__"
 
 # Metadata float attributes
-ATTRS_FLOAT  = ("Start", "Stop", "Step", "Wavelength", "Bandwidth")
+ATTRS_FLOAT = ("Start", "Stop", "Step", "Wavelength", "Bandwidth")
 # Metadata integer attributes
-ATTRS_INT = ("Averages", )
+ATTRS_INT = ("Averages",)
 # Metadata uncertainty attributes
 ATTRS_UNC = ("Laser energy before", "Laser energy after")
 
@@ -83,19 +92,21 @@ OPTIONS_TO_PRINT = [
 
 Array = npt.NDArray[np.float64]
 
-class ReadLiner(Protocol):
 
-    def readline(self) -> str:
-        ...
+class ReadLiner(Protocol):
+    def readline(self) -> str: ...
+
 
 ####
 # Unused for now
 class OAColumns(TypedDict):
     time: float
     signal: float
-    
+
+
 class OAColumnsSmooth(OAColumns):
     signal_smooth: float
+
 
 class Metadata(TypedDict):
     start: float
@@ -107,7 +118,9 @@ class Metadata(TypedDict):
     laser_before: Variable
     laser_after: Variable
 
+
 # end unused
+
 
 class TraceAnalysis(TypedDict):
     path: str
@@ -127,6 +140,7 @@ class TraceAnalysis(TypedDict):
     sonic_energy: Variable
 
     include: bool
+
 
 class FileAnalysis(TypedDict):
     path: str
@@ -165,8 +179,18 @@ class ExperimentAnalysis(TypedDict):
 class Options(TypedDict):
     savgol_window_length: int
     savgol_polyorder: int
-    on_progress: Callable[[str,], None]
-    on_error: Callable[[str,], None]
+    on_progress: Callable[
+        [
+            str,
+        ],
+        None,
+    ]
+    on_error: Callable[
+        [
+            str,
+        ],
+        None,
+    ]
     plot_time_trace_rep: bool
     trace_to_include: dict[tuple[str, int], bool]
     pa_signal: Literal["signal_delta", "signal_peak1", "signal_peak2", "sonic_energy"]
@@ -188,18 +212,19 @@ def default_options() -> Options:
         "trace_to_include": {},
         "pa_signal": "signal_delta",
         "plot_with_intercept": True,
-        "plot_uncertainty_slope" : False,
-        "plot_uncertainty_slope0" : True,
-        "max_energy" : 20.0,
-        "alpha_ref" : 1.0,
-        "peak_threshold_factor": 2
+        "plot_uncertainty_slope": False,
+        "plot_uncertainty_slope0": True,
+        "max_energy": 20.0,
+        "alpha_ref": 1.0,
+        "peak_threshold_factor": 2,
     }
+
 
 def get_line_colors() -> dict:
     return {
-        'sam'   :   ['C0', 'C4', 'C6', 'C9'],
-        'ref0'  :   ['C1', 'C3', 'C5', 'C7'],
-        'ref1'  :   ['C2', 'C8', 'khaki', 'olivedrab'],
+        "sam": ["C0", "C4", "C6", "C9"],
+        "ref0": ["C1", "C3", "C5", "C7"],
+        "ref1": ["C2", "C8", "khaki", "olivedrab"],
     }
 
 
@@ -207,24 +232,24 @@ def get_line_colors() -> dict:
 # Helper functions
 ###################
 
+
 def _argmedian_at_t0(signals: list[tuple[Array, Array]]) -> int:
-    """Returns the indices of the median value.
-    """
+    """Returns the indices of the median value."""
     peak_signal: list[float] = [
-        signal[np.searchsorted(time, 0)+1] 
-        for time, signal in signals
+        signal[np.searchsorted(time, 0) + 1] for time, signal in signals
     ]
-    el: float = np.percentile(peak_signal, 50, method='closest_observation') # type: ignore
+    el: float = np.percentile(peak_signal, 50, method="closest_observation")  # type: ignore
     return peak_signal.index(el)
 
 
 def get_unc_keys(klass: type) -> tuple[str, ...]:
-    """Returns the attribute names annotated as Variable (uncertainty).
-    """
+    """Returns the attribute names annotated as Variable (uncertainty)."""
     return tuple(k for k, v in get_type_hints(klass).items() if v is Variable)
 
 
-def unzip_unc_column(df: DataFrame, *column_names: str, drop_unc: bool=False) -> pd.DataFrame:
+def unzip_unc_column(
+    df: DataFrame, *column_names: str, drop_unc: bool = False
+) -> pd.DataFrame:
     """Unzip uncertainty column (`name`) into nominal_value (`name`) and std_dev ()`name_unc`).
 
     If `drop_unc` is True, only the nominal value will be extracted.
@@ -233,17 +258,19 @@ def unzip_unc_column(df: DataFrame, *column_names: str, drop_unc: bool=False) ->
     original_columns = df.columns
     for column_name in column_names:
         if drop_unc:
-            df[[column_name, ]] = df[column_name].apply(
-                lambda x: (x.nominal_value, )
-            ).to_list()
+            df[
+                [
+                    column_name,
+                ]
+            ] = df[column_name].apply(lambda x: (x.nominal_value,)).to_list()
         else:
-            df[[column_name, column_name + "_unc"]] = df[column_name].apply(
-                lambda x: (x.nominal_value, x.std_dev)
-            ).to_list()
+            df[[column_name, column_name + "_unc"]] = (
+                df[column_name].apply(lambda x: (x.nominal_value, x.std_dev)).to_list()
+            )
 
     if drop_unc:
         return df
-    
+
     new_columns = []
     for column_name in original_columns:
         new_columns.append(column_name)
@@ -254,57 +281,66 @@ def unzip_unc_column(df: DataFrame, *column_names: str, drop_unc: bool=False) ->
 
 
 def to_unc_str(nominal_value: float, std_dev: float, units: str | None = None) -> str:
-    """Build nice string of a quantity with uncertainty.
-    """
+    """Build nice string of a quantity with uncertainty."""
     if units is None:
         return "${:.2uL}$".format(ufloat(nominal_value, std_dev))
-    return "$({:.2uL})~{}$".format(ufloat(nominal_value, std_dev), units)    
+    return "$({:.2uL})~{}$".format(ufloat(nominal_value, std_dev), units)
 
-def to_unc_tuple(nominal_values: Iterable[float], std_devs: Iterable[float]) -> tuple[Variable, ...]:
-    """Zip iterable of nominal values and std devs into a tuple of uncertainties.
-    """
+
+def to_unc_tuple(
+    nominal_values: Iterable[float], std_devs: Iterable[float]
+) -> tuple[Variable, ...]:
+    """Zip iterable of nominal values and std devs into a tuple of uncertainties."""
     return tuple(ufloat(v, u) for v, u in zip(nominal_values, std_devs))
 
-def split_unc_tuple(*variables: Variable, container: type=tuple) -> tuple[tuple[float, ...], tuple[float, ...]]:
-    """Unzip iterable of uncertainties into a tuple of nominal value and a tuple of std dev
-    """
-    return container(v.nominal_value for v in variables), container(v.std_dev for v in variables)
+
+def split_unc_tuple(
+    *variables: Variable, container: type = tuple
+) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """Unzip iterable of uncertainties into a tuple of nominal value and a tuple of std dev"""
+    return container(v.nominal_value for v in variables), container(
+        v.std_dev for v in variables
+    )
 
 
 def ufloat_nanmean(*variables: Variable) -> Variable:
-    """Calculate new uncertainty by averaging an iterable of uncertainties.
-    """
-    els = [el for el in variables 
-             if np.isfinite(el.nominal_value) and np.isfinite(el.std_dev)]
-    
+    """Calculate new uncertainty by averaging an iterable of uncertainties."""
+    els = [
+        el
+        for el in variables
+        if np.isfinite(el.nominal_value) and np.isfinite(el.std_dev)
+    ]
+
     N = len(els)
     if N == 0:
         return UFLOAT_NAN
-    
+
     mx = np.asarray([el.nominal_value for el in els])
-    sx =  np.asarray([el.std_dev for el in els])
+    sx = np.asarray([el.std_dev for el in els])
 
     if np.all(sx == 0):
         return ufloat(mx.mean(), mx.std())
 
-    wx =  1 / sx / sx
-    
+    wx = 1 / sx / sx
+
     return ufloat((mx * wx).sum() / wx.sum(), np.sqrt(1 / wx.sum()))
+
 
 def ztest(unc1: Variable, unc2: Variable) -> float:
     """Given two uncertainties
 
-    Compare the means of two samples to see if it is feasible that 
-    they come from the same population. 
+    Compare the means of two samples to see if it is feasible that
+    they come from the same population.
     The null hypothesis is: the population means are equal.
-    
-    A very small p-value means that such an extreme observed outcome 
+
+    A very small p-value means that such an extreme observed outcome
     would be very unlikely under the null hypothesis.
 
     """
     z = (unc1.nominal_value - unc2.nominal_value) ** 2
-    z = z / (unc1.std_dev ** 2 + unc2.std_dev ** 2)
+    z = z / (unc1.std_dev**2 + unc2.std_dev**2)
     return sp.stats.norm.sf(np.sqrt(abs(z)))
+
 
 ################
 # I/O functions
@@ -312,8 +348,7 @@ def ztest(unc1: Variable, unc2: Variable) -> float:
 
 
 def reorganize_sheets(path: pathlib.Path):
-    """Reorganize sheets in an excel file
-    """
+    """Reorganize sheets in an excel file"""
     wb = load_workbook(path)
     sheetnames = wb.sheetnames
     for ndx, sheetname in enumerate(sheetnames, 0):
@@ -322,14 +357,13 @@ def reorganize_sheets(path: pathlib.Path):
     sheetnames = wb.sheetnames
     for ndx, sheetname in enumerate(sheetnames, 0):
         if sheetname.startswith("ref") or sheetname.startswith("sam"):
-            wb.move_sheet(sheetname, -ndx+2)
+            wb.move_sheet(sheetname, -ndx + 2)
 
     wb.save(path)
 
 
 def extract_include(path: pathlib.Path) -> DataFrame:
-    """Reorganize sheets in an excel file
-    """
+    """Reorganize sheets in an excel file"""
     out = []
     wb = load_workbook(path)
     sheetnames = wb.sheetnames
@@ -343,11 +377,10 @@ def extract_include(path: pathlib.Path) -> DataFrame:
 
 
 def read_metadata(fi: ReadLiner) -> dict[str, str]:
-    """Consume metadata from an open file.
-    """
+    """Consume metadata from an open file."""
     metadata: dict[str, str] = {}
     cnt = 0
-    while  True:
+    while True:
         line = str.strip(fi.readline())
         if not line:
             cnt += 1
@@ -362,21 +395,33 @@ def read_metadata(fi: ReadLiner) -> dict[str, str]:
 
 
 @overload
-def parse_metadata_content(metadata: Any, repeats: None) -> Generator[tuple[str, int | float | Variable | str], None, None]:
-    ...
+def parse_metadata_content(
+    metadata: Any, repeats: None
+) -> Generator[tuple[str, int | float | Variable | str], None, None]: ...
+
 
 @overload
-def parse_metadata_content(metadata: Any, repeats: int) -> Generator[tuple[str, tuple[int, ...] | tuple[float, ...] | tuple[Variable, ...] | tuple[str, ...]], None, None]:
-    ...
+def parse_metadata_content(
+    metadata: Any, repeats: int
+) -> Generator[
+    tuple[
+        str,
+        tuple[int, ...] | tuple[float, ...] | tuple[Variable, ...] | tuple[str, ...],
+    ],
+    None,
+    None,
+]: ...
 
-def parse_metadata_content(metadata: dict[str, str], repeats: int | None=None) -> Generator[tuple[Any, Any], None, None]:
-    """Parse metadata content.
-    """
+
+def parse_metadata_content(
+    metadata: dict[str, str], repeats: int | None = None
+) -> Generator[tuple[Any, Any], None, None]:
+    """Parse metadata content."""
 
     if repeats is None:
-        fun = lambda conv, x: conv(x) # type: ignore
+        fun = lambda conv, x: conv(x)  # type: ignore
     else:
-        fun = lambda conv, x: tuple(conv(el) for el in x.split(",")) # type: ignore
+        fun = lambda conv, x: tuple(conv(el) for el in x.split(","))  # type: ignore
 
     for k, v in metadata.items():
         if k in ATTRS_FLOAT:
@@ -390,23 +435,19 @@ def parse_metadata_content(metadata: dict[str, str], repeats: int | None=None) -
 
 
 def read_without_repeats(p: pathlib.Path | str) -> DataFrame:
-    """Read Edinburgh Instruments ascii file (with no repeats).
-    """
+    """Read Edinburgh Instruments ascii file (with no repeats)."""
     if isinstance(p, str):
         p = pathlib.Path(p)
-        
+
     with p.open("r", encoding="ascii") as fi:
         metadata = read_metadata(fi)
 
         # TODO: is the time always in ms? is the signal always in Volts?
-        df = pd.read_csv( # type: ignore
-            fi, 
-            sep=",",
-            header=0,
-            names=("time", "signal")
+        df = pd.read_csv(  # type: ignore
+            fi, sep=",", header=0, names=("time", "signal")
         )
         df["time"] = df["time"] / 1_000
-        
+
         for k, v in parse_metadata_content(metadata, None):
             df.attrs[k] = v
 
@@ -417,33 +458,32 @@ def read_without_repeats(p: pathlib.Path | str) -> DataFrame:
 
 
 def read_with_repeats(p: pathlib.Path | str) -> DataFrame:
-    """Read Edinburgh Instruments ascii file (with repeats).
-    """
+    """Read Edinburgh Instruments ascii file (with repeats)."""
 
     if isinstance(p, str):
         p = pathlib.Path(p)
-        
+
     with p.open("r", encoding="ascii") as fi:
-        fi.readline() # In files with repeats, the first two lines are like a header
-        fi.readline() # In files with repeats, the first two lines are like a header
+        fi.readline()  # In files with repeats, the first two lines are like a header
+        fi.readline()  # In files with repeats, the first two lines are like a header
 
         metadata = read_metadata(fi)
 
         # As the number of repeats is not stored in the metadata,
-        # we infer this value by counting the number of values in 
+        # we infer this value by counting the number of values in
         # one the metadata keys.
 
         estimated_length = len(metadata["Averages"].split(","))
 
         # TODO: is the time always in milliseconds? is the signal always in Volts?
-        df = pd.read_csv( # type: ignore
-            fi, 
+        df = pd.read_csv(  # type: ignore
+            fi,
             sep=",",
             header=0,
-            names=("time", ) + tuple("signal%d" % n for n in range(estimated_length))
+            names=("time",) + tuple("signal%d" % n for n in range(estimated_length)),
         )
         df["time"] = df["time"] / 1_000
-        
+
         for k, v in parse_metadata_content(metadata, estimated_length):
             assert len(v) == estimated_length
             df.attrs[k] = v
@@ -455,8 +495,7 @@ def read_with_repeats(p: pathlib.Path | str) -> DataFrame:
 
 
 def read(p: pathlib.Path | str) -> DataFrame:
-    """Read Edinburgh Instruments ascii file (with or without repeats).
-    """
+    """Read Edinburgh Instruments ascii file (with or without repeats)."""
 
     if isinstance(p, str):
         p = pathlib.Path(p)
@@ -464,7 +503,7 @@ def read(p: pathlib.Path | str) -> DataFrame:
     # is there a better way?
     with p.open("r", encoding="ascii") as fi:
         # In a file with repeats, the first line contains the filename.
-        # In a file without repeats, the file line contains the 
+        # In a file without repeats, the file line contains the
         # first metadata key value pair, comma separated.
         # This will fail is the filename contains a comma (which is rare)
 
@@ -474,13 +513,14 @@ def read(p: pathlib.Path | str) -> DataFrame:
             return read_with_repeats(p)
 
 
-def yield_individual_repeats(raw_df: DataFrame) -> Generator[tuple[int | None, DataFrame], None, None]:
-    """Yield number of repetition and dataframe.
-    """
+def yield_individual_repeats(
+    raw_df: DataFrame,
+) -> Generator[tuple[int | None, DataFrame], None, None]:
+    """Yield number of repetition and dataframe."""
 
     time: Array = raw_df["time"].to_numpy()
 
-    if ATTR_REPEATS in raw_df.attrs and raw_df.attrs[ATTR_REPEATS] is not None:    
+    if ATTR_REPEATS in raw_df.attrs and raw_df.attrs[ATTR_REPEATS] is not None:
         for ndx in range(raw_df.attrs[ATTR_REPEATS]):
             signal: Array = raw_df["signal%d" % ndx].to_numpy()
             tmpdf = pd.DataFrame(dict(time=time, signal=signal))
@@ -498,9 +538,9 @@ def yield_individual_repeats(raw_df: DataFrame) -> Generator[tuple[int | None, D
 # GUI Helpers
 ##############
 
+
 def open_explorer(path: pathlib.Path | str):
-    """Open the OS file explorer at the given path.
-    """
+    """Open the OS file explorer at the given path."""
 
     if platform.system() == "Windows":
         os.startfile(path)
@@ -517,21 +557,21 @@ def open_explorer(path: pathlib.Path | str):
 # Internal variable to footnote timestamp.
 _footnote_timestamp: str | None = None
 
+
 def footnote(fig: Figure, *, left_footer: str = "", right_footer: str = ""):
-    """Add footnote to page.
-    """
+    """Add footnote to page."""
 
     if left_footer:
-        fig.text(0.02, 0.01, left_footer, ha='left', fontsize=6, wrap=True) # type: ignore
+        fig.text(0.02, 0.01, left_footer, ha="left", fontsize=6, wrap=True)  # type: ignore
     if right_footer:
-        fig.text(0.98, 0.01, right_footer, ha='right', fontsize=6, wrap=True) # type: ignore
-    
+        fig.text(0.98, 0.01, right_footer, ha="right", fontsize=6, wrap=True)  # type: ignore
+
 
 def default_footnote(fig: Figure | None):
     """Add default footnote to page, which includes the analysis
     datetime and the script version.
 
-    To initialize the analysis datetime to current time, 
+    To initialize the analysis datetime to current time,
     call this function with None value.
     """
     global _footnote_timestamp
@@ -539,13 +579,18 @@ def default_footnote(fig: Figure | None):
         _footnote_timestamp = datetime.datetime.now().isoformat(timespec="seconds")
     else:
         footnote(
-            fig, 
+            fig,
             left_footer=f"Analysis datetime: {_footnote_timestamp}",
             right_footer=f"Photoacoustic analysis version: {__version__}",
         )
 
 
-def plot_signal_and_peaks(ax: Axes, raw_df: DataFrame, trace_analysis: TraceAnalysis, signal_smooth: Array | None):
+def plot_signal_and_peaks(
+    ax: Axes,
+    raw_df: DataFrame,
+    trace_analysis: TraceAnalysis,
+    signal_smooth: Array | None,
+):
     """Plot the signal and peaks (if given).
 
     Parameters
@@ -562,36 +607,44 @@ def plot_signal_and_peaks(ax: Axes, raw_df: DataFrame, trace_analysis: TraceAnal
 
     if signal_smooth is not None:
         ax.plot(raw_df["time"], signal_smooth, c="tab:blue")
-    
+
     mx = np.max(np.abs((ax.get_ylim())))
     ax.set_ylim(-mx, mx)
 
-    bg = raw_df["signal"][:500].mean() 
+    bg = raw_df["signal"][:500].mean()
     std = raw_df["signal"][:500].std()
 
-    ax.axhline(y=bg, ls=':', c="black")
-    ax.axhline(y=bg - std, ls=':', c="black")
-    ax.axhline(y=bg + std, ls=':', c="black")
+    ax.axhline(y=bg, ls=":", c="black")
+    ax.axhline(y=bg - std, ls=":", c="black")
+    ax.axhline(y=bg + std, ls=":", c="black")
 
     ax.set_xlabel(r"time / $\mu s$")
     ax.set_ylabel("signal / V")
 
     for n in (1, 2):
-        x = trace_analysis["time_peak1"].nominal_value if n == 1 else trace_analysis["time_peak2"].nominal_value
-        y = trace_analysis["signal_peak1"].nominal_value if n == 1 else trace_analysis["signal_peak2"].nominal_value
+        x = (
+            trace_analysis["time_peak1"].nominal_value
+            if n == 1
+            else trace_analysis["time_peak2"].nominal_value
+        )
+        y = (
+            trace_analysis["signal_peak1"].nominal_value
+            if n == 1
+            else trace_analysis["signal_peak2"].nominal_value
+        )
         if np.isnan(x) or np.isnan(y):
             continue
-        ax.axvline(x=x, ls='--', c="tab:green")
-        ax.axhline(y=y, ls='--', c="tab:green")
+        ax.axvline(x=x, ls="--", c="tab:green")
+        ax.axhline(y=y, ls="--", c="tab:green")
         ax.plot([x], [y], "x", c="tab:red")
 
 
 def build_time_trace_figure(
-    raw_df: DataFrame, 
-    peak_record: TraceAnalysis, 
+    raw_df: DataFrame,
+    peak_record: TraceAnalysis,
     signal_smooth: Array,
-    ) -> Figure:
-    """Plot a figure 
+) -> Figure:
+    """Plot a figure
 
     Parameters
     ----------
@@ -602,14 +655,14 @@ def build_time_trace_figure(
     peak_df
         Dataframe with the found peaks.
     title, optional
-        
+
     """
 
     fig = plt.figure()
-    fig.set_figwidth(297/40)
-    fig.set_figheight(210/40)
+    fig.set_figwidth(297 / 40)
+    fig.set_figheight(210 / 40)
 
-    gs = GridSpec(3, 3, figure=fig)#, bottom=.05)
+    gs = GridSpec(3, 3, figure=fig)  # , bottom=.05)
     ax_plot = fig.add_subplot(gs[:2, :])
     ax_meta = fig.add_subplot(gs[2, :2])
     ax_peak = fig.add_subplot(gs[2, -1])
@@ -620,22 +673,23 @@ def build_time_trace_figure(
     ax_inset.plot(raw_df["time"], raw_df["signal"])
     ax_inset.get_xaxis().set_ticks([])
     ax_inset.get_yaxis().set_ticks([])
-    
+
     plot_signal_and_peaks(ax_plot, raw_df, peak_record, signal_smooth)
     ax_meta.axis(False)
     ax_peak.axis(False)
-    
+
     cellText = [
-            ("Description", raw_df.attrs["Desc"]),
-            ("Wavelength", f"{raw_df.attrs['Wavelength']} nm"),
-            ("Laser energy", r"$({:.2uL})~\mu J$".format(raw_df.attrs['Laser energy before'])),
-            ("Exc. Wavelength", f'{raw_df.attrs.get("exc_wavelength", "N/A")} nm'),
-        ]
+        ("Description", raw_df.attrs["Desc"]),
+        ("Wavelength", f"{raw_df.attrs['Wavelength']} nm"),
+        (
+            "Laser energy",
+            r"$({:.2uL})~\mu J$".format(raw_df.attrs["Laser energy before"]),
+        ),
+        ("Exc. Wavelength", f"{raw_df.attrs.get('exc_wavelength', 'N/A')} nm"),
+    ]
 
     table = ax_meta.table(
-        cellText=cellText,
-        colLabels=("Parameter", "Value"),
-        loc='center'
+        cellText=cellText, colLabels=("Parameter", "Value"), loc="center"
     )
     table.auto_set_font_size(False)
     table.set_fontsize(5)
@@ -643,25 +697,31 @@ def build_time_trace_figure(
     ax_peak.set_title(f"Peaks (include={peak_record['include']})")
     table = ax_peak.table(
         cellText=[
-            (f"{peak_record['time_peak1'].nominal_value:.3f}", f"{peak_record['signal_peak1'].nominal_value:.3f}"),
-            (f"{peak_record['time_peak2'].nominal_value:.3f}", f"{peak_record['signal_peak2'].nominal_value:.3f}"),
-            (f"{peak_record['time_delta'].nominal_value:.3f}", f"{peak_record['signal_delta'].nominal_value:.3f}"),
+            (
+                f"{peak_record['time_peak1'].nominal_value:.3f}",
+                f"{peak_record['signal_peak1'].nominal_value:.3f}",
+            ),
+            (
+                f"{peak_record['time_peak2'].nominal_value:.3f}",
+                f"{peak_record['signal_peak2'].nominal_value:.3f}",
+            ),
+            (
+                f"{peak_record['time_delta'].nominal_value:.3f}",
+                f"{peak_record['signal_delta'].nominal_value:.3f}",
+            ),
         ],
         colLabels=(
-            #"Peak #", 
-            r"Time / $\mu s$", 
-            "Signal / V"),
-        rowLabels=(
-            " #1 ",
-            " #2 ",
-            r" $\Delta$ "
+            # "Peak #",
+            r"Time / $\mu s$",
+            "Signal / V",
         ),
-        loc='center',
+        rowLabels=(" #1 ", " #2 ", r" $\Delta$ "),
+        loc="center",
     )
     table.auto_set_font_size(False)
     table.set_fontsize(5)
     # table.scale(1, 4)
-        
+
     t0 = peak_record["time_peak1"]
     t1 = peak_record["time_peak2"]
     if np.isfinite(t0.nominal_value) and np.isfinite(t1.nominal_value):
@@ -676,12 +736,14 @@ def build_time_trace_figure(
     return fig
 
 
-def build_powerscan_overview_figure(signals: list[tuple[Array, Array]], energy: Array) -> Figure:
+def build_powerscan_overview_figure(
+    signals: list[tuple[Array, Array]], energy: Array
+) -> Figure:
 
     fig, ax = plt.subplots(1, 1)
 
-    fig.set_figwidth(297/40)
-    fig.set_figheight(210/40)
+    fig.set_figwidth(297 / 40)
+    fig.set_figheight(210 / 40)
 
     ax.set_xlabel(r"$\Delta$time / $\mu s$")
     ax.set_ylabel("signal / V")
@@ -697,23 +759,24 @@ def build_powerscan_overview_figure(signals: list[tuple[Array, Array]], energy: 
         ax.plot(time, signal, c=plt.cm.jet(norm(power)))
 
     plt.colorbar(
-        plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.jet), 
-        orientation='vertical', 
-        ax=ax, 
-        label=r"Laser power / $\mu J$"
+        plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.jet),
+        orientation="vertical",
+        ax=ax,
+        label=r"Laser power / $\mu J$",
     )
     default_footnote(fig)
     plt.tight_layout()
 
     return fig
 
+
 def build_options_figure(options: Options):
     fig, ax = plt.subplots()
-    ax.axis('off')
+    ax.axis("off")
     cell_text = [[opt, options[opt]] for opt in OPTIONS_TO_PRINT]
-    table = plt.table(cellText=cell_text,
-              colLabels=["Parameter", "Value"],
-              loc='center')
+    table = plt.table(
+        cellText=cell_text, colLabels=["Parameter", "Value"], loc="center"
+    )
     table.auto_set_font_size(False)
     table.set_fontsize(10)
     table.scale(1.2, 1.2)
@@ -721,14 +784,14 @@ def build_options_figure(options: Options):
 
 
 def build_powerscan_figure(
-        energy_delta_signal: Iterable[tuple[Iterable[Variable], Iterable[Variable]]],
-        slope_intercepts: tuple[Iterable[Variable], Iterable[Variable]],
-        slopes0: Iterable[Variable],
-        labels: Iterable[str],
-        results: Iterable[odr.Output],
-        results0: Iterable[odr.Output],
-        options: Options = default_options(),
-        ) -> Figure:
+    energy_delta_signal: Iterable[tuple[Iterable[Variable], Iterable[Variable]]],
+    slope_intercepts: tuple[Iterable[Variable], Iterable[Variable]],
+    slopes0: Iterable[Variable],
+    labels: Iterable[str],
+    results: Iterable[odr.Output],
+    results0: Iterable[odr.Output],
+    options: Options = default_options(),
+) -> Figure:
     """_summary_
 
     Parameters
@@ -744,11 +807,10 @@ def build_powerscan_figure(
     """
 
     fig, (ax_plot, ax_meta) = plt.subplots(
-        2, 1, 
-        gridspec_kw=dict(height_ratios=(.7, .3))
+        2, 1, gridspec_kw=dict(height_ratios=(0.7, 0.3))
     )
-    fig.set_figwidth(297/40)
-    fig.set_figheight(210/40)
+    fig.set_figwidth(297 / 40)
+    fig.set_figheight(210 / 40)
 
     ax_plot.set_xlabel(r"Laser power / $\mu J$")
     ax_plot.set_ylabel("PAS / V")
@@ -759,34 +821,37 @@ def build_powerscan_figure(
     rowColours = []
 
     line_colors = get_line_colors()
-    for (x, y), slope, intercept, slope0, label, result, result0 in zip(energy_delta_signal, *slope_intercepts, slopes0, labels, results, results0):
+    for (x, y), slope, intercept, slope0, label, result, result0 in zip(
+        energy_delta_signal, *slope_intercepts, slopes0, labels, results, results0
+    ):
         x, x_unc = split_unc_tuple(*x)
         y, y_unc = split_unc_tuple(*y)
-        
 
         try:
-            if label.startswith(('ref0', 'ref1')):
+            if label.startswith(("ref0", "ref1")):
                 color = get_line_colors()[label[:4]].pop(0)
-            elif label.startswith('sam'):
-                color = get_line_colors()['sam'].pop(0)
+            elif label.startswith("sam"):
+                color = get_line_colors()["sam"].pop(0)
             else:
                 color = None
         except IndexError as ex:
             options["on_error"](f"Ran out of line colors, changing to default")
             color = None
         except Exception as ex:
-            options["on_error"](f"An exception ocurred while trying to set line colors: {ex}")
+            options["on_error"](
+                f"An exception ocurred while trying to set line colors: {ex}"
+            )
 
         ls = None
 
         if options["plot_with_intercept"]:
             x_fit = np.linspace(0, np.max(x) * 1.1, 10)
             y_fit = slope.nominal_value * x_fit + intercept.nominal_value
-            
+
             if color is not None:
-                line, = ax_plot.plot(x_fit, y_fit, color=color)
+                (line,) = ax_plot.plot(x_fit, y_fit, color=color)
             else:
-                line, = ax_plot.plot(x_fit, y_fit)
+                (line,) = ax_plot.plot(x_fit, y_fit)
 
             color = line.get_color()
             ls = ":"
@@ -795,40 +860,55 @@ def build_powerscan_figure(
                 xa = np.linspace(0, np.max(x) * 1.1, 100)
 
                 # Slope
-                ya_var = xa**2 * result.cov_beta[0, 0] + result.cov_beta[1, 1] + 2 * xa * result.cov_beta[0, 1]
+                ya_var = (
+                    xa**2 * result.cov_beta[0, 0]
+                    + result.cov_beta[1, 1]
+                    + 2 * xa * result.cov_beta[0, 1]
+                )
                 ya_unc = np.sqrt(ya_var)
                 ya = slope.nominal_value * xa + intercept.nominal_value
 
-                ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
-                                     color=line.get_color(), alpha=0.2)
-
+                ax_plot.fill_between(
+                    xa,
+                    y1=ya - ya_unc,
+                    y2=ya + ya_unc,
+                    color=line.get_color(),
+                    alpha=0.2,
+                )
 
         x_fit = np.linspace(0, np.max(x) * 1.1, 10)
         y_fit = slope0.nominal_value * x_fit
-        line, = ax_plot.plot(x_fit, y_fit, ls=ls, color=color)
+        (line,) = ax_plot.plot(x_fit, y_fit, ls=ls, color=color)
 
         ax_plot.errorbar(
-            x, 
-            y, 
-            xerr=x_unc, 
-            yerr=y_unc, 
-            linestyle='None', 
-            marker='.',
+            x,
+            y,
+            xerr=x_unc,
+            yerr=y_unc,
+            linestyle="None",
+            marker=".",
             color=line.get_color(),
         )
 
         if options["plot_uncertainty_slope0"]:
             try:
                 xa = np.linspace(0, np.max(x) * 1.1, 100)
-            
+
                 # Slope0
-                ya_unc = np.sqrt(xa**2 * result0.cov_beta[0,0] )
+                ya_unc = np.sqrt(xa**2 * result0.cov_beta[0, 0])
                 ya = slope0.nominal_value * xa
 
-                ax_plot.fill_between(xa, y1=ya - ya_unc, y2=ya + ya_unc, 
-                                     color=line.get_color(), alpha=0.2)
+                ax_plot.fill_between(
+                    xa,
+                    y1=ya - ya_unc,
+                    y2=ya + ya_unc,
+                    color=line.get_color(),
+                    alpha=0.2,
+                )
             except Exception as e:
-                options['on_error'](f"Couldn't plot uncertainty of fit with origin 0: {e}")
+                options["on_error"](
+                    f"Couldn't plot uncertainty of fit with origin 0: {e}"
+                )
 
         cellText.append(
             (label, f"${slope:.2uL}$", f"${intercept:.2uL}$", f"${slope0:.2uL}$"),
@@ -839,8 +919,13 @@ def build_powerscan_figure(
 
     table = ax_meta.table(
         cellText=cellText,
-        colLabels=("Subfolder", r"Slope / $\left(V / \mu J \right)$", "Intercept / $V$", r"Slope0 / $\left(V / \mu J \right)$"),
-        loc='center',
+        colLabels=(
+            "Subfolder",
+            r"Slope / $\left(V / \mu J \right)$",
+            "Intercept / $V$",
+            r"Slope0 / $\left(V / \mu J \right)$",
+        ),
+        loc="center",
         rowColours=rowColours,
         rowLabels=rowLabels,
     )
@@ -860,7 +945,13 @@ def build_powerscan_figure(
 # Analysis functions
 #####################
 
-def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None, options: Options | None = None) -> list[tuple[Variable, Variable]]:
+
+def find_first_two_peaks(
+    time: Array,
+    signal: Array,
+    signal_smooth: Array | None,
+    options: Options | None = None,
+) -> list[tuple[Variable, Variable]]:
     """Find upto first two peaks.
 
     Iterable of Time, Signal
@@ -869,19 +960,19 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
     if options is None:
         options = default_options()
 
-    bg = signal[:500].mean() 
+    bg = signal[:500].mean()
     std = signal[:500].std()
-    
+
     # MHz
     acq_frequency = 1 / np.diff(time)[0]
     # us
-    time_distance = 1/2
-    time_width = 1/4
+    time_distance = 1 / 2
+    time_width = 1 / 4
 
     if signal_smooth is None:
         signal_smooth = savgol_filter(
-            signal, 
-            options["savgol_window_length"], 
+            signal,
+            options["savgol_window_length"],
             options["savgol_polyorder"],
         )
 
@@ -892,9 +983,9 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
     peak_threshold_factor = options["peak_threshold_factor"]
 
     ndxs, _props = find_peaks(
-        -signal_smooth, 
+        -signal_smooth,
         height=-bg + peak_threshold_factor * std,
-        prominence=peak_threshold_factor*std,
+        prominence=peak_threshold_factor * std,
         distance=time_distance * acq_frequency,
         width=time_width * acq_frequency,
     )
@@ -902,7 +993,7 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
     out.append(
         pd.DataFrame(
             dict(
-                time=time[ndxs], 
+                time=time[ndxs],
                 time_unc=np.zeros_like(time[ndxs]),
                 signal=signal_smooth[ndxs],
                 signal_unc=np.zeros_like(time[ndxs]),
@@ -913,7 +1004,7 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
     # Find negative peaks peaks
 
     ndxs, _props = find_peaks(
-        signal_smooth, 
+        signal_smooth,
         height=bg + peak_threshold_factor * std,
         prominence=peak_threshold_factor * std,
         distance=time_distance * acq_frequency,
@@ -923,19 +1014,19 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
     out.append(
         pd.DataFrame(
             dict(
-                time=time[ndxs], 
+                time=time[ndxs],
                 time_unc=np.zeros_like(time[ndxs]),
                 signal=signal_smooth[ndxs],
                 signal_unc=np.zeros_like(time[ndxs]),
             )
         )
     )
-    
+
     out = pd.concat(out).sort_values(by="time").reset_index(drop=True)
 
     if len(out) == 0:
         return []
-    
+
     # Keep only the first two peaks: positive, followed by negative.
 
     delta = np.abs(out["signal"].values - bg)
@@ -946,29 +1037,33 @@ def find_first_two_peaks(time: Array, signal: Array, signal_smooth: Array | None
     sign = np.sign(out["signal"].values - bg)
     sel = np.zeros(len(out), dtype=bool)
     best = np.where((sign == 1) & (np.roll(sign, -1) == -1))[0]
-    
+
     if len(best) == 0:
         return []
-    
+
     signal_best = out.iloc[best]["signal"].to_numpy()
     signal_best /= np.max(signal_best)
     # we consider that all peaks 30% smaller than the maximum
-    signal_best[signal_best>.7] = 1
+    signal_best[signal_best > 0.7] = 1
 
     best = best[np.argmax(signal_best)]
 
     sel[best] = True
     sel[best + 1] = True
 
-    return [ ( ufloat(out.iloc[ndx]["time"], out.iloc[ndx]["time_unc"]), 
-               ufloat(out.iloc[ndx]["signal"], out.iloc[ndx]["signal_unc"]) ) 
-              for ndx in (best, best+1)]
+    return [
+        (
+            ufloat(out.iloc[ndx]["time"], out.iloc[ndx]["time_unc"]),
+            ufloat(out.iloc[ndx]["signal"], out.iloc[ndx]["signal_unc"]),
+        )
+        for ndx in (best, best + 1)
+    ]
 
 
 def _fix_fit_unc(unc: Array):
     if not np.any(unc == 0):
         return unc
-    
+
     if np.all(unc == 0):
         return None
     else:
@@ -977,9 +1072,14 @@ def _fix_fit_unc(unc: Array):
         return unc
 
 
-def fit_linear(x: Iterable[float], y: Iterable[float], x_unc: Iterable[float], y_unc: Iterable[float], intercept0: bool=False) -> tuple[tuple[Variable, Variable], odr.Output]:
-    """Fit linear and return the slope and intercept (as value with uncertainty).
-    """
+def fit_linear(
+    x: Iterable[float],
+    y: Iterable[float],
+    x_unc: Iterable[float],
+    y_unc: Iterable[float],
+    intercept0: bool = False,
+) -> tuple[tuple[Variable, Variable], odr.Output]:
+    """Fit linear and return the slope and intercept (as value with uncertainty)."""
 
     x = np.asarray(x)
     y = np.asarray(y)
@@ -987,12 +1087,14 @@ def fit_linear(x: Iterable[float], y: Iterable[float], x_unc: Iterable[float], y
     y_unc = np.asarray(y_unc)
 
     data = odr.RealData(
-        x, y,
-        sx=_fix_fit_unc(x_unc), sy=_fix_fit_unc(y_unc),
+        x,
+        y,
+        sx=_fix_fit_unc(x_unc),
+        sy=_fix_fit_unc(y_unc),
     )
 
     if intercept0:
-        beta0 = [np.median(y_unc[x_unc>0]/x_unc[x_unc>0]), 0]
+        beta0 = [np.median(y_unc[x_unc > 0] / x_unc[x_unc > 0]), 0]
         result = odr.ODR(data, odr.unilinear, beta0=beta0, ifixb=[1, 0]).run()
     else:
         result = odr.ODR(data, odr.unilinear).run()
@@ -1000,19 +1102,17 @@ def fit_linear(x: Iterable[float], y: Iterable[float], x_unc: Iterable[float], y
     return to_unc_tuple(result.beta, result.sd_beta), result
 
 
-def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[TraceAnalysis, Array]:
-    """Find the first two peaks to obtain the time and signal delta.
-    """
+def analyze_time_trace(
+    time: Array, signal: Array, options: Options
+) -> tuple[TraceAnalysis, Array]:
+    """Find the first two peaks to obtain the time and signal delta."""
 
-    signal_smooth: Array = savgol_filter(signal, options["savgol_window_length"], options["savgol_polyorder"])
-
-    peaks = find_first_two_peaks(
-        time, 
-        signal, 
-        signal_smooth,
-        options
+    signal_smooth: Array = savgol_filter(
+        signal, options["savgol_window_length"], options["savgol_polyorder"]
     )
-    
+
+    peaks = find_first_two_peaks(time, signal, signal_smooth, options)
+
     # TODO: Just in case
     peaks.append((UFLOAT_NAN, UFLOAT_NAN))
     peaks.append((UFLOAT_NAN, UFLOAT_NAN))
@@ -1020,7 +1120,7 @@ def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[Tr
     first_peak = peaks[0]
     second_peak = peaks[1]
 
-    time_delta  = first_peak[0] - second_peak[0]
+    time_delta = first_peak[0] - second_peak[0]
     signal_delta = first_peak[1] - second_peak[1]
 
     ti = first_peak[0].nominal_value - 3
@@ -1028,47 +1128,56 @@ def analyze_time_trace(time: Array, signal: Array, options: Options) -> tuple[Tr
     dt = time[1] - time[0]
     time_filter = np.logical_and(time > ti, time < tf)
     # TBD: Add proper error propagation
-    sonic_energy = ufloat(np.sum(np.abs(signal_smooth[time_filter]) * dt) / (tf - ti), 0)
-
+    sonic_energy = ufloat(
+        np.sum(np.abs(signal_smooth[time_filter]) * dt) / (tf - ti), 0
+    )
 
     return (
         {
-        "path": "",
-        "repeat": None,
-        "include": all(map(np.isfinite, (time_delta.nominal_value, time_delta.std_dev, signal_delta.nominal_value, signal_delta.std_dev))),
-
-        "energy": UFLOAT_NAN,
-
-        "time_peak1": peaks[0][0],
-        "signal_peak1": peaks[0][1],
-
-        "time_peak2": peaks[1][0],
-        "signal_peak2": peaks[1][1],
-
-        "time_delta": time_delta,
-        "signal_delta": signal_delta,
-
-        "sonic_energy": sonic_energy,
-        }, 
-        signal_smooth
+            "path": "",
+            "repeat": None,
+            "include": all(
+                map(
+                    np.isfinite,
+                    (
+                        time_delta.nominal_value,
+                        time_delta.std_dev,
+                        signal_delta.nominal_value,
+                        signal_delta.std_dev,
+                    ),
+                )
+            ),
+            "energy": UFLOAT_NAN,
+            "time_peak1": peaks[0][0],
+            "signal_peak1": peaks[0][1],
+            "time_peak2": peaks[1][0],
+            "signal_peak2": peaks[1][1],
+            "time_delta": time_delta,
+            "signal_delta": signal_delta,
+            "sonic_energy": sonic_energy,
+        },
+        signal_smooth,
     )
-    
 
-def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | None, options: Options) -> tuple[FileAnalysis, list[tuple[Array, Array]], list[float]]:
-    """Analyze a file (with or without repeats) to obtain the time and signal delta.
-    """
+
+def analyze_file(
+    p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | None, options: Options
+) -> tuple[FileAnalysis, list[tuple[Array, Array]], list[float]]:
+    """Analyze a file (with or without repeats) to obtain the time and signal delta."""
 
     experiment_folder = p.parent.parent
 
     try:
         alldf = read(p)
     except Exception as ex:
-        options["on_error"](f"Could not load file {str(p.relative_to(experiment_folder))}: {str(ex)}")
-        return {}, [], [] # type: ignore
-    
+        options["on_error"](
+            f"Could not load file {str(p.relative_to(experiment_folder))}: {str(ex)}"
+        )
+        return {}, [], []  # type: ignore
+
     if not len(alldf):
-        return {}, [], [] # type: ignore
-    
+        return {}, [], []  # type: ignore
+
     options["on_progress"](str(p.relative_to(experiment_folder)))
 
     signals: list[tuple[Array, Array]] = []
@@ -1076,15 +1185,24 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
     records: list[TraceAnalysis] = []
 
     for ndx, df in yield_individual_repeats(alldf):
-        suffix = "" if ndx is None else f"\n(rep {ndx+1}/{df.attrs[ATTR_REPEATS]})"
-        
+        suffix = "" if ndx is None else f"\n(rep {ndx + 1}/{df.attrs[ATTR_REPEATS]})"
+
         try:
-            trace_analysis, signal_smooth = analyze_time_trace(df["time"].to_numpy(), df["signal"].to_numpy(), options)
-        except Exception as ex: 
-            options["on_error"](f"Could not analyze time trace {str(p.relative_to(experiment_folder))} {suffix}: {str(ex)}")
+            trace_analysis, signal_smooth = analyze_time_trace(
+                df["time"].to_numpy(), df["signal"].to_numpy(), options
+            )
+        except Exception as ex:
+            options["on_error"](
+                f"Could not analyze time trace {str(p.relative_to(experiment_folder))} {suffix}: {str(ex)}"
+            )
             continue
 
-        signals.append((df["time"].to_numpy() - trace_analysis["time_peak1"].nominal_value, signal_smooth))
+        signals.append(
+            (
+                df["time"].to_numpy() - trace_analysis["time_peak1"].nominal_value,
+                signal_smooth,
+            )
+        )
 
         trace_analysis["path"] = str(p.relative_to(experiment_folder))
         trace_analysis["repeat"] = ndx
@@ -1093,24 +1211,24 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
         if trace_analysis["energy"].nominal_value >= options["max_energy"]:
             trace_analysis["include"] = False
 
-        trace_analysis["include"] = (
-                trace_analysis["include"] and
-                options["trace_to_include"].get((str(p.relative_to(experiment_folder)), ndx), True)
-            )
+        trace_analysis["include"] = trace_analysis["include"] and options[
+            "trace_to_include"
+        ].get((str(p.relative_to(experiment_folder)), ndx), True)
 
         records.append(trace_analysis)
 
         if pdf is not None:
             if ndx is None or options["plot_time_trace_rep"]:
                 fig = build_time_trace_figure(
-                        df, trace_analysis, signal_smooth,
-                    )
+                    df,
+                    trace_analysis,
+                    signal_smooth,
+                )
                 plt.suptitle(str(p.relative_to(experiment_folder)) + suffix)
                 default_footnote(fig)
                 plt.tight_layout()
                 pdf.savefig(fig)
                 plt.close(fig)
-
 
     trace_analysis_df = pd.DataFrame.from_records(records)
 
@@ -1120,13 +1238,11 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
             prefix = "(%s)" % p.parent.stem.split("_")[0]
         except Exception:
             prefix = "(?)"
-        
-        unzip_unc_column(trace_analysis_df.copy(), *get_unc_keys(TraceAnalysis), drop_unc=True).to_excel(
-            xlsx, 
-            sheet_name= prefix + " " + p.stem, 
-            startrow=0,
-            index=False,
-            header=True
+
+        unzip_unc_column(
+            trace_analysis_df.copy(), *get_unc_keys(TraceAnalysis), drop_unc=True
+        ).to_excel(
+            xlsx, sheet_name=prefix + " " + p.stem, startrow=0, index=False, header=True
         )
 
     #####################
@@ -1137,10 +1253,12 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
         # TODO: check what Edinburg is doing for compatibility std or sem
         # TODO: make funciton filter all simulteanously.
         energy = ufloat_nanmean(*trace_analysis_df[include]["energy"].to_list())
-        pa_signal = ufloat_nanmean(*trace_analysis_df[include][options["pa_signal"]].to_list())
+        pa_signal = ufloat_nanmean(
+            *trace_analysis_df[include][options["pa_signal"]].to_list()
+        )
     except Exception as ex:
         print(ex)
-        energy  = pa_signal = UFLOAT_NAN
+        energy = pa_signal = UFLOAT_NAN
 
     return (
         {
@@ -1151,17 +1269,20 @@ def analyze_file(p: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | N
             "bandwith": df.attrs["Bandwidth"],
             "averages": df.attrs["Averages"],
             "repeats": df.attrs[ATTR_REPEATS],
-
             "energy": energy,
             "pa_signal": pa_signal,
-        }, 
-        [signal for _inc, signal in zip(include, signals) if _inc], 
-        [x.nominal_value for x in trace_analysis_df[include]["energy"]]
+        },
+        [signal for _inc, signal in zip(include, signals) if _inc],
+        [x.nominal_value for x in trace_analysis_df[include]["energy"]],
     )
 
 
-
-def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | None, options: Options) -> tuple[PowerscanAnalysis, tuple[list[Variable], list[Variable]]]:
+def analyze_powerscan_folder(
+    folder: pathlib.Path,
+    pdf: PdfPages | None,
+    xlsx: pd.ExcelWriter | None,
+    options: Options,
+) -> tuple[PowerscanAnalysis, tuple[list[Variable], list[Variable]]]:
     """Analyze a powerscan folder to the slope and intercept
     of the delta signal vs energy.
     """
@@ -1182,7 +1303,7 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
 
     signals: list[tuple[Array, Array]] = []
     powers: list[float] = []
-    
+
     median_signals: list[tuple[Array, Array]] = []
     median_powers: list[float] = []
 
@@ -1190,7 +1311,7 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
         if file.stem.startswith("_"):
             continue
 
-        file_analysis, _signals, _powers= analyze_file(file, pdf, xlsx, options)
+        file_analysis, _signals, _powers = analyze_file(file, pdf, xlsx, options)
 
         if len(_signals) == 0:
             continue
@@ -1203,7 +1324,7 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
         median_powers.append(_powers[ndx])
 
         signals.extend(_signals)
-        powers.extend(_powers) 
+        powers.extend(_powers)
         records.append(file_analysis)
 
     file_df = pd.DataFrame.from_records(records)
@@ -1215,7 +1336,7 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
             fig.tight_layout()
             pdf.savefig(fig)
             plt.close(fig)
-        
+
         fig = build_powerscan_overview_figure(median_signals, np.asarray(median_powers))
         fig.suptitle(folder.stem)
         fig.tight_layout()
@@ -1224,24 +1345,32 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
 
     if xlsx is not None:
         unzip_unc_column(file_df.copy(), *get_unc_keys(FileAnalysis)).to_excel(
-            xlsx, 
-            sheet_name=folder.stem, 
-            index=False
+            xlsx, sheet_name=folder.stem, index=False
         )
 
     energy: list[Variable] = file_df["energy"].to_list()
     pa_signal: list[Variable] = file_df["pa_signal"].to_list()
 
     try:
-        x, x_unc = split_unc_tuple(*energy, container=lambda el: np.fromiter(el, dtype=float))
-        y, y_unc = split_unc_tuple(*pa_signal, container=lambda el: np.fromiter(el, dtype=float))
+        x, x_unc = split_unc_tuple(
+            *energy, container=lambda el: np.fromiter(el, dtype=float)
+        )
+        y, y_unc = split_unc_tuple(
+            *pa_signal, container=lambda el: np.fromiter(el, dtype=float)
+        )
 
         valid = np.logical_not(np.logical_or(np.isnan(x), np.isnan(y)))
         if np.sum(valid) >= 2:
-            (slope, intercept), result = fit_linear(x[valid], y[valid], x_unc[valid], y_unc[valid])
-            (slope0, _intercept0), result0 = fit_linear(x[valid], y[valid], x_unc[valid], y_unc[valid], intercept0=True)
+            (slope, intercept), result = fit_linear(
+                x[valid], y[valid], x_unc[valid], y_unc[valid]
+            )
+            (slope0, _intercept0), result0 = fit_linear(
+                x[valid], y[valid], x_unc[valid], y_unc[valid], intercept0=True
+            )
         else:
-            options["on_error"](f"Could not fit for {folder.stem}: not enough valid points")
+            options["on_error"](
+                f"Could not fit for {folder.stem}: not enough valid points"
+            )
             slope = intercept = UFLOAT_NAN
             slope0 = _intercept0 = UFLOAT_NAN
             result, result0 = None, None
@@ -1252,7 +1381,6 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
         slope0 = _intercept0 = UFLOAT_NAN
         result, result0 = None, None
 
-
     return {
         "folder": folder.stem,
         "sam_ref": sam_ref,
@@ -1261,14 +1389,18 @@ def analyze_powerscan_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: p
         "slope": slope,
         "intercept": intercept,
         "slope0": slope0,
-        "result":result,
+        "result": result,
         "result0": result0,
     }, (energy, pa_signal)
 
 
-def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: pd.ExcelWriter | None, options: Options) -> DataFrame:
-    """Analyze experiment folder to obtain the alpha value for the sample.
-    """
+def analyze_experiment_folder(
+    folder: pathlib.Path,
+    pdf: PdfPages | None,
+    xlsx: pd.ExcelWriter | None,
+    options: Options,
+) -> DataFrame:
+    """Analyze experiment folder to obtain the alpha value for the sample."""
 
     abs_ref = None
     abs_sam = None
@@ -1282,7 +1414,7 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
                 abs_sam = float(v.strip())
         if abs_sam is None:
             options["on_error"]("Sample absorption not found in `abs.txt`")
-        if abs_ref is None :
+        if abs_ref is None:
             options["on_error"]("Reference absorption not found in `abs.txt`")
     except Exception as ex:
         options["on_error"](f"Absorption values could not be loaded: {str(ex)}")
@@ -1308,7 +1440,11 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
 
     for exc_wavelength, gdf in fit_df.groupby("exc_wavelength"):
         try:
-            row_ref  = gdf.query("sam_ref.str.startswith('ref')").sort_values("sam_ref").iloc[0]
+            row_ref = (
+                gdf.query("sam_ref.str.startswith('ref')")
+                .sort_values("sam_ref")
+                .iloc[0]
+            )
         except Exception:
             row_ref = None
 
@@ -1330,13 +1466,12 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
             del tmp, tmp0, folders
 
         if pdf is not None:
-
             fig = build_options_figure(options)
             pdf.savefig(fig)
             plt.close(fig)
 
             fig = build_powerscan_figure(
-                xys, 
+                xys,
                 (gdf["slope"].to_list(), gdf["intercept"].to_list()),
                 gdf["slope0"].to_list(),
                 gdf["folder"].to_list(),
@@ -1356,16 +1491,15 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
 
     if abs_ref is None or abs_sam is None:
         return pd.DataFrame()
-    
+
     # (m_sam / m_ref) = alpha * (1- 10^-(A_sam)) / (1- 10^-(A_ref))
     alpha_records: list[ExperimentAnalysis] = []
 
-    factor = (1 - 10**(-abs_ref)) / (1 - 10**(-abs_sam))
+    factor = (1 - 10 ** (-abs_ref)) / (1 - 10 ** (-abs_sam))
 
     alpha_ref = options["alpha_ref"]
 
     for exc_wavelength, gdf in fit_df.groupby("exc_wavelength"):
-
         gdf_ref = gdf.query("sam_ref.str.startswith('ref')")
         for _, row_sam in gdf.query("sam_ref.str.startswith('sam')").iterrows():
             for _, row_ref in gdf_ref.iterrows():
@@ -1376,11 +1510,16 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
                         "ref": row_ref["folder"],
                         "sam": row_sam["folder"],
                         "exc_wavelength": exc_wavelength,
-                        "alpha": alpha_ref * row_sam["slope"] / row_ref["slope"] * factor,
-                        "alpha0": alpha_ref * row_sam["slope0"] / row_ref["slope0"] * factor,
+                        "alpha": alpha_ref
+                        * row_sam["slope"]
+                        / row_ref["slope"]
+                        * factor,
+                        "alpha0": alpha_ref
+                        * row_sam["slope0"]
+                        / row_ref["slope0"]
+                        * factor,
                     }
                 )
-
 
         refs = gdf_ref["slope"].to_list()
         refs0 = gdf_ref["slope0"].to_list()
@@ -1392,15 +1531,21 @@ def analyze_experiment_folder(folder: pathlib.Path, pdf: PdfPages | None, xlsx: 
                     "ref": "avg",
                     "sam": row_sam["folder"],
                     "exc_wavelength": exc_wavelength,
-                    "alpha": alpha_ref * row_sam["slope"] / ufloat_nanmean(*refs) * factor,
-                    "alpha0": alpha_ref * row_sam["slope0"] / ufloat_nanmean(*refs0) * factor,
+                    "alpha": alpha_ref
+                    * row_sam["slope"]
+                    / ufloat_nanmean(*refs)
+                    * factor,
+                    "alpha0": alpha_ref
+                    * row_sam["slope0"]
+                    / ufloat_nanmean(*refs0)
+                    * factor,
                 }
             )
 
     return pd.DataFrame.from_records(alpha_records)
 
 
-def analyze(root: pathlib.Path, options: Options | None=None):
+def analyze(root: pathlib.Path, options: Options | None = None):
     """Analyze an experiment folder:
 
     1. analyze all sample and reference folders.
@@ -1423,7 +1568,7 @@ def analyze(root: pathlib.Path, options: Options | None=None):
                     options[name] = value = user_options[name]
                     options["on_progress"](f"options.toml: Setting {name} to {value}")
     except FileNotFoundError:
-        #options["on_progress"]("options.toml not found.")
+        # options["on_progress"]("options.toml not found.")
         pass
 
     assert options is not None
@@ -1436,31 +1581,32 @@ def analyze(root: pathlib.Path, options: Options | None=None):
         }
     except FileNotFoundError:
         options["trace_to_include"] = {}
-        
 
     default_footnote(None)
 
     with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="This figure includes Axes that are not compatible with tight_layout")
-        with PdfPages(root / 'summary.pdf') as pdf:
-
+        warnings.filterwarnings(
+            "ignore",
+            message="This figure includes Axes that are not compatible with tight_layout",
+        )
+        with PdfPages(root / "summary.pdf") as pdf:
             d = pdf.infodict()
-            d['Title'] = 'Photoacoustic analysis'
-            d['Author'] = 'Hernán Grecco'
-            d['CreationDate'] = datetime.datetime.today()
-            d['ModDate'] = datetime.datetime.today()
-            
-            with pd.ExcelWriter(root / 'summary.xlsx') as xlsx:
-                df = analyze_experiment_folder(root, pdf, xlsx, options) 
+            d["Title"] = "Photoacoustic analysis"
+            d["Author"] = "Hernán Grecco"
+            d["CreationDate"] = datetime.datetime.today()
+            d["ModDate"] = datetime.datetime.today()
+
+            with pd.ExcelWriter(root / "summary.xlsx") as xlsx:
+                df = analyze_experiment_folder(root, pdf, xlsx, options)
                 if len(df):
-                    unzip_unc_column(df, "alpha", "alpha0").to_excel(xlsx, sheet_name="__ALPHA__", index=False)
+                    unzip_unc_column(df, "alpha", "alpha0").to_excel(
+                        xlsx, sheet_name="__ALPHA__", index=False
+                    )
 
-            reorganize_sheets(root / 'summary.xlsx')
+            reorganize_sheets(root / "summary.xlsx")
 
-            extract_include(root / 'summary.xlsx').to_excel(
-                root / "include.xlsx",
-                index=False,
-                header=True
+            extract_include(root / "summary.xlsx").to_excel(
+                root / "include.xlsx", index=False, header=True
             )
 
 
@@ -1469,8 +1615,8 @@ if __name__ == "__main__":
     # from tkinter import filedialog
     # path = pathlib.Path(filedialog.askdirectory(initialdir="."))
     # root = Tk()
-    #ROOT = pathlib.Path("/Users/grecco/Documents/projects/strassert/optoacustic/data") 
-    #ROOT = pathlib.Path('/home/tomi/Documents/academicos/becas/alemania/centech/lab/data/2025-01-21/oil_test/70')
+    # ROOT = pathlib.Path("/Users/grecco/Documents/projects/strassert/optoacustic/data")
+    # ROOT = pathlib.Path('/home/tomi/Documents/academicos/becas/alemania/centech/lab/data/2025-01-21/oil_test/70')
 
     # path = ROOT / "2024-07-16"
     # analyze(path)
@@ -1486,10 +1632,12 @@ if __name__ == "__main__":
     # analyze(path)
     # path = ROOT / "2024-08-01" / "Air" / "10 Measurements"
     # analyze(path)
-    #path = ROOT / "2024-08-09"
-    path = pathlib.Path('/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/au-pt-au')
-    #path = pathlib.Path("/Users/grecco/Data/Cristian Strassert (Münster)/problema")
-    options = {**default_options(), "alpha_ref":1, 'pa_signal':'sonic_energy'}
+    # path = ROOT / "2024-08-09"
+    path = pathlib.Path(
+        "/home/tomi/Documents/academicos/doc/projects/photoacoustic/data/test_photoacoustic/au-pt-au"
+    )
+    # path = pathlib.Path("/Users/grecco/Data/Cristian Strassert (Münster)/problema")
+    options = {**default_options(), "alpha_ref": 1, "pa_signal": "sonic_energy"}
     analyze(path, options=options)
     print(path)
     # open_explorer(ROOT)

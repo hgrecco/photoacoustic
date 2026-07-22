@@ -38,7 +38,7 @@ from uncertainties import ufloat, ufloat_fromstr
 from uncertainties.core import Variable
 from openpyxl import load_workbook
 
-__version__ = "2025.02.12"
+__version__ = "2026.07.22"
 
 
 def versions() -> list[tuple[str, str]]:

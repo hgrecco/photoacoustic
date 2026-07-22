@@ -5,7 +5,6 @@ import numpy as np
 import numpy.typing as npt
 
 OPTIONS_TO_PRINT = [
-    "plot_time_trace_rep",
     "plot_with_intercept",
     "plot_uncertainty_slope",
     "plot_uncertainty_slope0",
@@ -48,7 +47,6 @@ class Options(LinearPlotOptions):
         ],
         None,
     ]
-    plot_time_trace_rep: bool
     trace_to_include: dict[tuple[str, int], bool]
     pa_signal: PaSignal
     max_energy: float
@@ -65,7 +63,6 @@ def default_options() -> Options:
         "savgol_polyorder": 3,
         "on_progress": print,
         "on_error": print,
-        "plot_time_trace_rep": True,
         "trace_to_include": {},
         "pa_signal": "signal_delta",
         "plot_with_intercept": True,

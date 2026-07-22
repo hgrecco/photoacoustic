@@ -1042,7 +1042,7 @@ def find_first_two_peaks(
         return []
 
     signal_best = out.iloc[best]["signal"].to_numpy()
-    signal_best /= np.max(signal_best)
+    signal_best = signal_best / np.max(signal_best)
     # we consider that all peaks 30% smaller than the maximum
     signal_best[signal_best > 0.7] = 1
 

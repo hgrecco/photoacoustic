@@ -1287,7 +1287,7 @@ def analyze_powerscan_folder(
     of the delta signal vs energy.
     """
 
-    parts = folder.stem.split("_", 2)
+    parts = folder.name.split("_", 2)
     if len(parts) == 3:
         sam_ref, wl, desc = parts
         try:

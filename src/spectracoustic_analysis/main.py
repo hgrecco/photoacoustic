@@ -8,7 +8,9 @@ from enum import Enum, auto
 import matplotlib
 from watchdog.events import (
     DirCreatedEvent,
+    DirMovedEvent,
     FileCreatedEvent,
+    FileMovedEvent,
     FileSystemEventHandler,
 )
 from watchdog.observers.polling import PollingObserver
@@ -37,6 +39,14 @@ class ExperimentEventHandler(FileSystemEventHandler):
     def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
         time.sleep(0.01)
         p = pathlib.Path(str(event.src_path))
+        self.queue.put(p)
+
+    def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
+        # This catches the os.replace() rename operation
+        time.sleep(0.01)
+
+        # Use dest_path to get the finalized filename
+        p = pathlib.Path(str(event.dest_path))
         self.queue.put(p)
 
 

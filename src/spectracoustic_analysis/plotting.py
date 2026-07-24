@@ -479,7 +479,7 @@ def build_linear_fit_figure(
     fig.set_figwidth(297 / 40)
     fig.set_figheight(210 / 40)
 
-    ax_plot.set_xlabel(r"Laser power / $\mu J$")
+    ax_plot.set_xlabel(r"Laser energy / $\mu J$")
     ax_plot.set_ylabel("PAS / V")
     ax_plot.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
 

@@ -88,7 +88,7 @@ def build_powerscan_overview_figure(
         plt.cm.ScalarMappable(norm=norm, cmap=plt.cm.jet),
         orientation="vertical",
         ax=ax,
-        label=r"Laser power / $\mu J$",
+        label=r"Laser energy / $\mu J$",
     )
     default_footnote(fig)
     plt.tight_layout()

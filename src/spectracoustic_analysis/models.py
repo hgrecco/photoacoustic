@@ -211,6 +211,7 @@ class MeasurementFile:
                     "signal_delta": trace.get_analysis(options)[
                         "signal_delta"
                     ].nominal_value,
+                    "sonic_energy": trace.get_analysis(options)["sonic_energy"],
                 }
             )
         return pd.DataFrame.from_records(records)
